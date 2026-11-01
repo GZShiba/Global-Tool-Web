@@ -1,0 +1,7 @@
+# ToolNest robots.txt
+# Allow all crawlers; the site is a static web app and needs CSS/JS to render.
+User-agent: *
+Allow: /
+
+# Sitemap location (absolute production URL)
+Sitemap: https://toolnest.app/sitemap.xml

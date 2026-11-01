@@ -1,0 +1,194 @@
+import { useEffect } from 'react';
+import { Toaster } from 'sonner';
+import { ToolProvider, useToolStore } from './context/ToolContext';
+import Header from './components/Header';
+import Footer from './components/Footer';
+import Hero from './components/Hero';
+import FeaturedTools from './components/FeaturedTools';
+import NewAndNoteworthy from './components/NewAndNoteworthy';
+import WhyToolNest from './components/WhyToolNest';
+import Categories from './components/Categories';
+import ToolsBrowser from './components/ToolsBrowser';
+import ToolPage from './components/ToolPage';
+import ToolRunPage from './components/ToolRunPage';
+import AboutPage from './components/AboutPage';
+import PrivacyPage from './components/PrivacyPage';
+import NotFoundPage from './components/NotFoundPage';
+import {
+  applyPageMeta, canonicalPath, toolTitle, toolDescription,
+  breadcrumbJsonLd, webSiteJsonLd, organizationJsonLd, softwareApplicationJsonLd,
+} from './lib/seo';
+import { getCategory } from './data/tools';
+
+function buildPageMeta(view: string, tool: ReturnType<typeof useToolStore>['selectedTool'], categoryId: string) {
+  const category = categoryId !== 'all' ? getCategory(categoryId) : undefined;
+  const path = canonicalPath(view, tool, categoryId);
+
+  switch (view) {
+    case 'home':
+      return {
+        title: 'ToolNest — Free Online Tools for Everyday Work',
+        description: 'Free online tools that run entirely in your browser. Converters, generators, calculators, text utilities, and developer helpers — private, instant, and no sign-up required.',
+        canonicalPath: path,
+        jsonLd: [webSiteJsonLd(), organizationJsonLd()],
+      };
+
+    case 'tools':
+      return {
+        title: 'All Tools — Browse Every Free Online Tool | ToolNest',
+        description: 'Browse the full collection of free, browser-based tools: text utilities, converters, generators, calculators, developer helpers, and file tools. Everything runs locally in your browser.',
+        canonicalPath: path,
+        jsonLd: [webSiteJsonLd()],
+      };
+
+    case 'category': {
+      if (!category) {
+        return { title: 'Category Not Found | ToolNest', description: 'This category does not exist.', canonicalPath: path, noindex: true, jsonLd: [] };
+      }
+      return {
+        title: `${category.name} Tools — ${category.description} | ToolNest`,
+        description: `${category.description}. Free ${category.name.toLowerCase()} tools that run entirely in your browser — no sign-up, no uploads.`,
+        canonicalPath: path,
+        jsonLd: [
+          breadcrumbJsonLd([
+            { name: 'Home', path: '/' },
+            { name: 'All Tools', path: '/tools' },
+            { name: category.name, path: `/categories/${categoryId}` },
+          ]),
+        ],
+      };
+    }
+
+    case 'tool': {
+      if (!tool) {
+        return { title: 'Tool Not Found | ToolNest', description: 'The requested tool does not exist.', canonicalPath: path, noindex: true, jsonLd: [] };
+      }
+      const cat = getCategory(tool.category);
+      return {
+        title: toolTitle(tool),
+        description: toolDescription(tool),
+        canonicalPath: path,
+        ogType: 'website',
+        jsonLd: [
+          softwareApplicationJsonLd(tool),
+          breadcrumbJsonLd([
+            { name: 'Home', path: '/' },
+            { name: 'All Tools', path: '/tools' },
+            ...(cat ? [{ name: cat.name, path: `/categories/${cat.id}` }] : []),
+            { name: tool.name, path: `/tools/${tool.slug}` },
+          ]),
+        ],
+      };
+    }
+
+    case 'run': {
+      if (!tool) {
+        return { title: 'Tool Not Found | ToolNest', description: 'The requested tool does not exist.', canonicalPath: path, noindex: true, jsonLd: [] };
+      }
+      // Working interface: intentionally not indexed (details page is the canonical entry).
+      return {
+        title: `${tool.name} — Use Tool | ToolNest`,
+        description: `Open and use ${tool.name} right in your browser.`,
+        canonicalPath: path,
+        noindex: true,
+        jsonLd: [],
+      };
+    }
+
+    case 'about':
+      return {
+        title: 'About ToolNest — Free Browser-Based Tools',
+        description: 'Learn what ToolNest is, the types of browser-based tools it offers, and the privacy and usability principles behind the product.',
+        canonicalPath: path,
+        jsonLd: [organizationJsonLd()],
+      };
+
+    case 'privacy':
+      return {
+        title: 'Privacy Policy | ToolNest',
+        description: 'ToolNest processes data locally in your browser. Read about local storage, cookies, and analytics.',
+        canonicalPath: path,
+        jsonLd: [],
+      };
+
+    case 'bookmarks':
+      return {
+        title: 'My Tools — Bookmarked Tools | ToolNest',
+        description: 'Your bookmarked ToolNest tools, stored privately in this browser.',
+        canonicalPath: path,
+        noindex: true,
+        jsonLd: [],
+      };
+
+    case 'notfound':
+      return {
+        title: 'Page Not Found | ToolNest',
+        description: 'The page you are looking for does not exist.',
+        canonicalPath: path,
+        noindex: true,
+        jsonLd: [],
+      };
+
+    default:
+      return { title: 'ToolNest', description: 'Free online tools that run in your browser.', canonicalPath: path };
+  }
+}
+
+function MainAppContent() {
+  const { view, selectedTool, selectedCategory } = useToolStore();
+
+  useEffect(() => {
+    applyPageMeta(buildPageMeta(view, selectedTool, selectedCategory));
+  }, [view, selectedTool, selectedCategory]);
+
+  const invalidTool = (view === 'tool' || view === 'run') && !selectedTool;
+  const invalidCategory = view === 'category' && selectedCategory !== 'all' && !getCategory(selectedCategory);
+
+  return (
+    <div className="bg-app min-h-screen font-sans text-neutral-900 dark:text-neutral-100 selection:bg-gray-200 dark:selection:bg-neutral-800">
+      <Toaster position="top-center" />
+
+      <Header />
+
+      <main className="pt-[116px] sm:pt-[124px] md:pt-0">
+        {invalidTool || invalidCategory ? (
+          <NotFoundPage />
+        ) : view === 'home' ? (
+          <>
+            <Hero />
+            <FeaturedTools />
+            <NewAndNoteworthy />
+            <WhyToolNest />
+            <Categories />
+          </>
+        ) : view === 'tools' ? (
+          <ToolsBrowser mode="all" />
+        ) : view === 'category' ? (
+          <ToolsBrowser mode="category" />
+        ) : view === 'bookmarks' ? (
+          <ToolsBrowser mode="bookmarks" />
+        ) : view === 'tool' ? (
+          <ToolPage />
+        ) : view === 'run' ? (
+          <ToolRunPage />
+        ) : view === 'about' ? (
+          <AboutPage />
+        ) : view === 'privacy' ? (
+          <PrivacyPage />
+        ) : view === 'notfound' ? (
+          <NotFoundPage />
+        ) : null}
+      </main>
+
+      <Footer />
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ToolProvider>
+      <MainAppContent />
+    </ToolProvider>
+  );
+}

@@ -1,0 +1,142 @@
+@import "tailwindcss";
+
+@variant dark (&:where(.dark, .dark *));
+
+/* ---------------------------------------------------------------
+   ToolNest design tokens
+   Light theme: cool off-white page, white cards — layered surfaces.
+   Dark theme: deep charcoal page, lighter charcoal cards — layered.
+   Blue accent system shared by both themes (Education Hub palette).
+   --------------------------------------------------------------- */
+@layer base {
+  :root {
+    --bg-page: #eef1f6;
+    --bg-card: #ffffff;
+    --bg-inset: #e4e9f0;
+    --bg-icon: #e4e9f0;
+    --bg-raised: #e4e9f0;
+    --border-subtle: rgba(13, 22, 36, 0.11);
+    --text-main: #151c2c;
+    --text-secondary: #4a5872;
+    --text-faint: #7e8ba0;
+    --text-disabled: #7e8ba0;
+    --accent: #2563eb;
+    --on-accent: #ffffff;
+    --accent-soft: rgba(37, 99, 235, 0.09);
+  }
+
+  .dark {
+    --bg-page: #0a0a0a;
+    --bg-card: #181818;
+    --bg-inset: #222222;
+    --bg-icon: #242424;
+    --bg-raised: #262626;
+    --border-subtle: #2c2c2c;
+    --text-main: #f5f5f5;
+    --text-secondary: #b0b0b0;
+    --text-faint: #929292;
+    --text-disabled: #737373;
+    --accent: #3b82f6;
+    --on-accent: #ffffff;
+    --accent-soft: rgba(59, 130, 246, 0.16);
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  body {
+    background-color: var(--bg-page);
+    color: var(--text-main);
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Standard surfaces — use these instead of ad-hoc grays */
+  .bg-page { background-color: var(--bg-page); }
+  .bg-app {
+    background-color: var(--bg-page);
+    background-image:
+      radial-gradient(720px 440px at 12% -5%, rgba(59, 130, 246, 0.10), transparent 60%),
+      radial-gradient(720px 440px at 100% 105%, rgba(139, 92, 246, 0.07), transparent 60%);
+  }
+  .dark .bg-app {
+    background-image: none;
+  }
+  .bg-card { background-color: var(--bg-card); }
+  .bg-inset { background-color: var(--bg-inset); }
+  .bg-icon { background-color: var(--bg-icon); }
+  .bg-raised { background-color: var(--bg-raised); }
+  .bg-header {
+    background-color: color-mix(in srgb, var(--bg-page) 86%, transparent);
+    backdrop-filter: blur(10px);
+  }
+  .border-subtle { border-color: var(--border-subtle); }
+  .text-secondary { color: var(--text-secondary); }
+  .text-faint { color: var(--text-faint); }
+  .text-disabled { color: var(--text-disabled); }
+
+  /* Blue accent system — restrained, shared by both themes */
+  .text-accent { color: var(--accent); }
+  .bg-accent { background-color: var(--accent); color: var(--on-accent); }
+  .bg-accent-soft { background-color: var(--accent-soft); }
+  .border-accent { border-color: var(--accent); }
+  .focus-accent:focus-visible { outline-color: var(--accent); }
+
+  /* Card elevation used across the site */
+  .card-lift {
+    transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
+  }
+  .card-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 40px rgba(10, 10, 12, 0.10);
+  }
+  .dark .card-lift:hover {
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .card-lift:hover {
+      transform: none;
+    }
+  }
+
+  /* Consistent press feedback for touch devices */
+  .tap-feedback {
+    transition: transform 0.15s ease, background-color 0.2s ease, border-color 0.2s ease;
+  }
+  .tap-feedback:active {
+    transform: scale(0.98);
+  }
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  animation: marquee 40s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee, .marquee-motion {
+    animation: none !important;
+  }
+}
