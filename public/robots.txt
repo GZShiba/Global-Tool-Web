@@ -1,4 +1,4 @@
-# ToolNest robots.txt
+# OmniToolify robots.txt
 # Allow all crawlers; the site is a static web app and needs CSS/JS to render.
 User-agent: *
 Allow: /

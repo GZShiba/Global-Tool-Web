@@ -1,5 +1,5 @@
 import { MouseEvent } from 'react';
-import { Wrench, Mail } from 'lucide-react';
+import { Mail } from 'lucide-react';
 import { useToolStore } from '../context/ToolContext';
 import { categories, tools } from '../data/tools';
 
@@ -22,12 +22,12 @@ export default function Footer() {
           <button
             onClick={() => navigate('home')}
             className="flex items-center gap-2 text-lg font-extrabold tracking-tight text-white"
-            aria-label="ToolNest home"
+            aria-label="OmniToolify home"
           >
             <span className="w-8 h-8 bg-white rounded-xl flex items-center justify-center shrink-0">
-              <Wrench className="text-neutral-900" size={15} />
+              <img src="/OmniToolify_Icon.png" alt="" aria-hidden="true" className="w-5 h-5 object-contain" />
             </span>
-            ToolNest
+            OmniToolify
           </button>
           <p className="text-neutral-500 text-[11px] font-normal leading-relaxed mt-3 max-w-[220px] hidden md:block">
             Free online tools that run entirely in your browser.
@@ -86,7 +86,7 @@ export default function Footer() {
       <div className="border-t border-neutral-800/60">
         <div className="max-w-7xl mx-auto px-4 sm:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <div className="text-neutral-500 text-[10px] font-medium tracking-wide text-center sm:text-left">
-            © 2026 ToolNest. All tools run in your browser.
+            © 2026 OmniToolify. All tools run in your browser.
           </div>
           <div className="flex items-center gap-4 text-neutral-500">
             <a href="/privacy" onClick={e => handleNav(e, 'privacy')} aria-label="Privacy policy" className="hover:text-white transition-all">

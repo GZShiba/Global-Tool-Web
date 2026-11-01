@@ -1,5 +1,5 @@
 /**
- * ToolNest — SEO metadata engine.
+ * OmniToolify — SEO metadata engine.
  *
  * Sets per-page title, meta description, canonical URL, robots directives,
  * Open Graph / Twitter cards, and JSON-LD structured data. Canonical URLs
@@ -108,7 +108,7 @@ export function applyPageMeta(meta: PageMeta) {
 
   // Open Graph / Twitter
   const canonical = absoluteUrl(meta.canonicalPath);
-  upsertProperty('og:site_name', 'ToolNest');
+  upsertProperty('og:site_name', 'OmniToolify');
   upsertProperty('og:title', meta.title);
   upsertProperty('og:description', meta.description);
   upsertProperty('og:url', canonical);
@@ -139,7 +139,7 @@ export function webSiteJsonLd(): JsonLd {
   return {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
-    name: 'ToolNest',
+    name: 'OmniToolify',
     url: siteUrl(),
     description: 'Free online tools that run entirely in your browser — converters, generators, calculators, text utilities, and developer helpers.',
   };
@@ -149,9 +149,9 @@ export function organizationJsonLd(): JsonLd {
   return {
     '@context': 'https://schema.org',
     '@type': 'Organization',
-    name: 'ToolNest',
+    name: 'OmniToolify',
     url: siteUrl(),
-    description: 'ToolNest is a collection of free, browser-based online tools.',
+    description: 'OmniToolify is a collection of free, browser-based online tools.',
   };
 }
 
@@ -170,7 +170,7 @@ export function softwareApplicationJsonLd(tool: Tool): JsonLd {
 
 /** Shared title/description builders used across pages. */
 export function toolTitle(tool: Tool): string {
-  return `${tool.name} — Free Online ${categoryLabel(tool.category)} | ToolNest`;
+  return `${tool.name} — Free Online ${categoryLabel(tool.category)} | OmniToolify`;
 }
 
 export function toolDescription(tool: Tool): string {

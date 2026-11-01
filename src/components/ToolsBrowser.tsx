@@ -150,7 +150,7 @@ export default function ToolsBrowser({ mode }: ToolsBrowserProps) {
                     </div>
                     <div className="space-y-8">{sidebar}</div>
                   </div>
-                  <p className="pt-6 border-t border-subtle text-[10px] text-center text-faint font-bold uppercase tracking-widest">ToolNest</p>
+                  <p className="pt-6 border-t border-subtle text-[10px] text-center text-faint font-bold uppercase tracking-widest">OmniToolify</p>
                 </motion.div>
               </>
             )}

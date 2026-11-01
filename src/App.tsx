@@ -27,7 +27,7 @@ function buildPageMeta(view: string, tool: ReturnType<typeof useToolStore>['sele
   switch (view) {
     case 'home':
       return {
-        title: 'ToolNest — Free Online Tools for Everyday Work',
+        title: 'OmniToolify — Free Online Tools for Everyday Work',
         description: 'Free online tools that run entirely in your browser. Converters, generators, calculators, text utilities, and developer helpers — private, instant, and no sign-up required.',
         canonicalPath: path,
         jsonLd: [webSiteJsonLd(), organizationJsonLd()],
@@ -35,7 +35,7 @@ function buildPageMeta(view: string, tool: ReturnType<typeof useToolStore>['sele
 
     case 'tools':
       return {
-        title: 'All Tools — Browse Every Free Online Tool | ToolNest',
+        title: 'All Tools — Browse Every Free Online Tool | OmniToolify',
         description: 'Browse the full collection of free, browser-based tools: text utilities, converters, generators, calculators, developer helpers, and file tools. Everything runs locally in your browser.',
         canonicalPath: path,
         jsonLd: [webSiteJsonLd()],
@@ -43,10 +43,10 @@ function buildPageMeta(view: string, tool: ReturnType<typeof useToolStore>['sele
 
     case 'category': {
       if (!category) {
-        return { title: 'Category Not Found | ToolNest', description: 'This category does not exist.', canonicalPath: path, noindex: true, jsonLd: [] };
+        return { title: 'Category Not Found | OmniToolify', description: 'This category does not exist.', canonicalPath: path, noindex: true, jsonLd: [] };
       }
       return {
-        title: `${category.name} Tools — ${category.description} | ToolNest`,
+        title: `${category.name} Tools — ${category.description} | OmniToolify`,
         description: `${category.description}. Free ${category.name.toLowerCase()} tools that run entirely in your browser — no sign-up, no uploads.`,
         canonicalPath: path,
         jsonLd: [
@@ -61,7 +61,7 @@ function buildPageMeta(view: string, tool: ReturnType<typeof useToolStore>['sele
 
     case 'tool': {
       if (!tool) {
-        return { title: 'Tool Not Found | ToolNest', description: 'The requested tool does not exist.', canonicalPath: path, noindex: true, jsonLd: [] };
+        return { title: 'Tool Not Found | OmniToolify', description: 'The requested tool does not exist.', canonicalPath: path, noindex: true, jsonLd: [] };
       }
       const cat = getCategory(tool.category);
       return {
@@ -83,11 +83,11 @@ function buildPageMeta(view: string, tool: ReturnType<typeof useToolStore>['sele
 
     case 'run': {
       if (!tool) {
-        return { title: 'Tool Not Found | ToolNest', description: 'The requested tool does not exist.', canonicalPath: path, noindex: true, jsonLd: [] };
+        return { title: 'Tool Not Found | OmniToolify', description: 'The requested tool does not exist.', canonicalPath: path, noindex: true, jsonLd: [] };
       }
       // Working interface: intentionally not indexed (details page is the canonical entry).
       return {
-        title: `${tool.name} — Use Tool | ToolNest`,
+        title: `${tool.name} — Use Tool | OmniToolify`,
         description: `Open and use ${tool.name} right in your browser.`,
         canonicalPath: path,
         noindex: true,
@@ -97,24 +97,24 @@ function buildPageMeta(view: string, tool: ReturnType<typeof useToolStore>['sele
 
     case 'about':
       return {
-        title: 'About ToolNest — Free Browser-Based Tools',
-        description: 'Learn what ToolNest is, the types of browser-based tools it offers, and the privacy and usability principles behind the product.',
+        title: 'About OmniToolify — Free Browser-Based Tools',
+        description: 'Learn what OmniToolify is, the types of browser-based tools it offers, and the privacy and usability principles behind the product.',
         canonicalPath: path,
         jsonLd: [organizationJsonLd()],
       };
 
     case 'privacy':
       return {
-        title: 'Privacy Policy | ToolNest',
-        description: 'ToolNest processes data locally in your browser. Read about local storage, cookies, and analytics.',
+        title: 'Privacy Policy | OmniToolify',
+        description: 'OmniToolify processes data locally in your browser. Read about local storage, cookies, and analytics.',
         canonicalPath: path,
         jsonLd: [],
       };
 
     case 'bookmarks':
       return {
-        title: 'My Tools — Bookmarked Tools | ToolNest',
-        description: 'Your bookmarked ToolNest tools, stored privately in this browser.',
+        title: 'My Tools — Bookmarked Tools | OmniToolify',
+        description: 'Your bookmarked OmniToolify tools, stored privately in this browser.',
         canonicalPath: path,
         noindex: true,
         jsonLd: [],
@@ -122,7 +122,7 @@ function buildPageMeta(view: string, tool: ReturnType<typeof useToolStore>['sele
 
     case 'notfound':
       return {
-        title: 'Page Not Found | ToolNest',
+        title: 'Page Not Found | OmniToolify',
         description: 'The page you are looking for does not exist.',
         canonicalPath: path,
         noindex: true,
@@ -130,7 +130,7 @@ function buildPageMeta(view: string, tool: ReturnType<typeof useToolStore>['sele
       };
 
     default:
-      return { title: 'ToolNest', description: 'Free online tools that run in your browser.', canonicalPath: path };
+      return { title: 'OmniToolify', description: 'Free online tools that run in your browser.', canonicalPath: path };
   }
 }
 

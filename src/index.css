@@ -3,7 +3,7 @@
 @variant dark (&:where(.dark, .dark *));
 
 /* ---------------------------------------------------------------
-   ToolNest design tokens
+   OmniToolify design tokens
    Light theme: cool off-white page, white cards — layered surfaces.
    Dark theme: deep charcoal page, lighter charcoal cards — layered.
    Blue accent system shared by both themes (Education Hub palette).

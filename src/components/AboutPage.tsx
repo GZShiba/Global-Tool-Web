@@ -46,13 +46,13 @@ export default function AboutPage() {
               <span className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center">
                 <Wrench className="text-neutral-900" size={22} />
               </span>
-              <span className="text-2xl font-extrabold tracking-tight">ToolNest</span>
+              <span className="text-2xl font-extrabold tracking-tight">OmniToolify</span>
             </div>
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight leading-none mb-5">
               Useful tools, <span className="text-gray-400">honestly built.</span>
             </h1>
             <p className="text-gray-300 text-sm sm:text-base font-medium leading-relaxed">
-              ToolNest is a global collection of free online tools for developers, designers, students, and anyone who works with text, numbers, images, or the web. No accounts, no uploads, no games — just tools that work.
+              OmniToolify is a global collection of free online tools for developers, designers, students, and anyone who works with text, numbers, images, or the web. No accounts, no uploads, no games — just tools that work.
             </p>
             <div className="flex flex-wrap gap-6 mt-8">
               <div><div className="text-3xl font-extrabold tracking-tight">{tools.length}</div><div className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mt-1">Tools</div></div>
@@ -80,7 +80,7 @@ export default function AboutPage() {
         <h2 className="text-xl sm:text-2xl md:text-[28px] font-extrabold text-neutral-900 dark:text-white tracking-tight mb-6">Frequently asked questions</h2>
         <div className="space-y-4 mb-12">
           {[
-            { q: 'Is ToolNest really free?', a: 'Yes. Every tool on the platform is free to use with no usage limits, no accounts, and no paywalls.' },
+            { q: 'Is OmniToolify really free?', a: 'Yes. Every tool on the platform is free to use with no usage limits, no accounts, and no paywalls.' },
             { q: 'Is my data safe?', a: 'Yes — by design. All tools run entirely in your browser using standard web technology. Your text, files, and numbers are never uploaded to any server. Saved tools ("My Tools") are stored only in your own browser.' },
             { q: 'Do I need to create an account?', a: 'No. There are no accounts. Bookmark tools with the bookmark icon and they will be waiting for you in "My Tools" on the same device and browser.' },
             { q: 'What are the limits of the tools?', a: 'Each tool page documents its supported formats and limitations in the "Good to know" section. Since processing happens on your device, very large files may be limited by your device memory.' },

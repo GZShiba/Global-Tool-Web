@@ -11,7 +11,7 @@ export default function PrivacyPage() {
           Privacy Policy
         </h1>
         <p className="text-secondary text-sm sm:text-base font-normal leading-relaxed mt-3">
-          This policy explains how ToolNest handles data. It is intentionally short because the product is intentionally local.
+          This policy explains how OmniToolify handles data. It is intentionally short because the product is intentionally local.
         </p>
 
         <div className="mt-8 space-y-5">
@@ -20,7 +20,7 @@ export default function PrivacyPage() {
               <Smartphone size={16} className="text-accent" /> Where your data is processed
             </h2>
             <p className="text-sm text-secondary font-normal leading-relaxed">
-              Every tool runs entirely in your browser. Text you paste, files you select, and values you enter are processed locally on your device using standard browser APIs (Canvas, Web Crypto, FileReader, and similar). ToolNest has no backend that receives your tool input.
+              Every tool runs entirely in your browser. Text you paste, files you select, and values you enter are processed locally on your device using standard browser APIs (Canvas, Web Crypto, FileReader, and similar). OmniToolify has no backend that receives your tool input.
             </p>
           </section>
 
@@ -29,7 +29,7 @@ export default function PrivacyPage() {
               <HardDrive size={16} className="text-accent" /> Local storage we use
             </h2>
             <p className="text-sm text-secondary font-normal leading-relaxed">
-              ToolNest uses your browser's local storage for a few convenience features:
+              OmniToolify uses your browser's local storage for a few convenience features:
             </p>
             <ul className="mt-3 space-y-2 text-sm text-secondary font-normal">
               <li className="flex gap-2"><span className="text-accent font-bold">•</span> <span><strong className="text-neutral-900 dark:text-white">Theme preference</strong> — which theme (light/dark) you selected.</span></li>
@@ -45,7 +45,7 @@ export default function PrivacyPage() {
               <Cookie size={16} className="text-accent" /> Cookies, analytics, and third parties
             </h2>
             <p className="text-sm text-secondary font-normal leading-relaxed">
-              ToolNest does not use advertising cookies, tracking pixels, or third-party analytics. We do not sell or share personal data because we do not collect it. No accounts are created and no personal information is requested.
+              OmniToolify does not use advertising cookies, tracking pixels, or third-party analytics. We do not sell or share personal data because we do not collect it. No accounts are created and no personal information is requested.
             </p>
           </section>
 
@@ -54,7 +54,7 @@ export default function PrivacyPage() {
               <Mail size={16} className="text-accent" /> Contact
             </h2>
             <p className="text-sm text-secondary font-normal leading-relaxed">
-              ToolNest does not publish a corporate operator or email address, and this website does not collect contact information. If you have a privacy question, please reach out through the channel where you obtained this software (for example, the public project repository when one is published).
+              OmniToolify does not publish a corporate operator or email address, and this website does not collect contact information. If you have a privacy question, please reach out through the channel where you obtained this software (for example, the public project repository when one is published).
             </p>
           </section>
 

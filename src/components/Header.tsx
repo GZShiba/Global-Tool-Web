@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Wrench, Search, Menu, X, Bookmark, Sun, Moon, ArrowRight } from 'lucide-react';
+import { Search, Menu, X, Bookmark, Sun, Moon, ArrowRight } from 'lucide-react';
 import { useToolStore } from '../context/ToolContext';
 import { categories, searchTools } from '../data/tools';
 import { View } from '../types';
@@ -97,9 +97,9 @@ export default function Header() {
           onKeyDown={e => { if (e.key === 'Enter') navigate('home'); }}
         >
           <span className="w-8 h-8 bg-neutral-900 dark:bg-white rounded-xl flex items-center justify-center shrink-0">
-            <Wrench className="text-white dark:text-neutral-900" size={15} />
+            <img src="/OmniToolify_Icon.png" alt="" aria-hidden="true" className="w-5 h-5 object-contain" />
           </span>
-          <span>ToolNest</span>
+          <span>OmniToolify</span>
         </div>
 
         {/* Desktop search bar */}

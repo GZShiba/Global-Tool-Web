@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * ToolNest — Git-native build checkpoint & rollback workflow.
+ * OmniToolify — Git-native build checkpoint & rollback workflow.
  *
  * The Git history is the single source of truth: every checkpoint is an
  * ordinary commit; rollback is branch/worktree based; the pre-rollback

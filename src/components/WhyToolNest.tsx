@@ -41,7 +41,7 @@ export default function WhyToolNest() {
           <div className="max-w-2xl mb-8 sm:mb-10">
             <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-soft text-accent font-bold uppercase tracking-[0.22em] text-[10px] mb-4">
               <span className="w-1.5 h-1.5 rounded-full bg-accent" />
-              Why ToolNest
+              Why OmniToolify
             </span>
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight leading-[1.1] text-neutral-900 dark:text-white">
               Built for getting things done,
@@ -49,7 +49,7 @@ export default function WhyToolNest() {
               <span className="text-secondary"> not for keeping you waiting.</span>
             </h2>
             <p className="text-secondary text-sm sm:text-base font-normal leading-relaxed mt-4">
-              Most online tools bury you in ads, uploads, and sign-up walls. ToolNest takes a different approach: focused tools that respect your time and your privacy.
+              Most online tools bury you in ads, uploads, and sign-up walls. OmniToolify takes a different approach: focused tools that respect your time and your privacy.
             </p>
           </div>
 

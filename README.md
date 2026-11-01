@@ -1,4 +1,4 @@
-# ToolNest
+# OmniToolify
 
 A professional, globally accessible collection of **free online tools** — converters, generators, calculators, text utilities, and developer helpers. Every tool runs entirely in the browser: no accounts, no uploads, no tracking.
 
