@@ -31,6 +31,9 @@ export default defineConfig(({ mode }) => {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modify—file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
+      // Allow access from other devices on the same LAN (e.g. 10.42.168.95:3000).
+      // Dev-only convenience; the server still binds to 0.0.0.0 via the npm dev script.
+      allowedHosts: true,
     },
   };
 });
