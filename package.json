@@ -10,6 +10,7 @@
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
     "sitemap": "node scripts/generate-sitemap.mjs",
+    "og:cover": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/generate-og-cover.ps1",
     "checkpoint": "node scripts/git-checkpoint.mjs checkpoint",
     "checkpoint:list": "node scripts/git-checkpoint.mjs list",
     "checkpoint:return": "node scripts/git-checkpoint.mjs return"

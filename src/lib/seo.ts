@@ -3,8 +3,12 @@
  *
  * Sets per-page title, meta description, canonical URL, robots directives,
  * Open Graph / Twitter cards, and JSON-LD structured data. Canonical URLs
- * are absolute; the production base URL is configurable via VITE_SITE_URL
- * (defaults to a placeholder that must be replaced before launch).
+ * are absolute; the production base URL is configurable via VITE_SITE_URL.
+ *
+ * IMPORTANT: the production domain is NOT verified. VITE_SITE_URL defaults
+ * to the historical placeholder https://toolnest.app. All canonical / social /
+ * sitemap URLs flow through siteUrl(), so setting VITE_SITE_URL to the real
+ * verified domain updates the whole site consistently.
  */
 import { Tool } from '../types';
 
@@ -17,6 +21,11 @@ export function siteUrl(): string {
 
 export function absoluteUrl(path: string): string {
   return `${siteUrl()}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
+/** Default social sharing image (absolute). Replace with the verified production asset. */
+export function socialImageUrl(): string {
+  return `${siteUrl()}/og-cover.png`;
 }
 
 /** Canonical path for each route (clean, crawlable URLs). */
@@ -46,6 +55,7 @@ export interface PageMeta {
   canonicalPath: string;
   noindex?: boolean;
   ogType?: string;
+  ogImage?: string;
   jsonLd?: JsonLd[];
 }
 
@@ -106,16 +116,27 @@ export function applyPageMeta(meta: PageMeta) {
   upsertCanonical(absoluteUrl(meta.canonicalPath));
   setRobots(!!meta.noindex);
 
-  // Open Graph / Twitter
+  // Open Graph
   const canonical = absoluteUrl(meta.canonicalPath);
+  const ogImage = meta.ogImage || socialImageUrl();
   upsertProperty('og:site_name', 'OmniToolify');
+  upsertProperty('og:locale', 'en_US');
+  upsertProperty('og:type', meta.ogType || 'website');
   upsertProperty('og:title', meta.title);
   upsertProperty('og:description', meta.description);
   upsertProperty('og:url', canonical);
-  upsertProperty('og:type', meta.ogType || 'website');
-  upsertProperty('twitter:card', 'summary');
+  upsertProperty('og:image', ogImage);
+  upsertProperty('og:image:alt', 'OmniToolify — online tools in one place');
+  upsertProperty('og:image:width', '1200');
+  upsertProperty('og:image:height', '630');
+  upsertProperty('og:image:type', 'image/png');
+
+  // Twitter Card (summary_large_image)
+  upsertProperty('twitter:card', 'summary_large_image');
   upsertProperty('twitter:title', meta.title);
   upsertProperty('twitter:description', meta.description);
+  upsertProperty('twitter:image', ogImage);
+  upsertProperty('twitter:image:alt', 'OmniToolify — online tools in one place');
 
   setJsonLd(meta.jsonLd || []);
 }
@@ -140,8 +161,9 @@ export function webSiteJsonLd(): JsonLd {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
     name: 'OmniToolify',
+    alternateName: 'Omni Toolify',
     url: siteUrl(),
-    description: 'Free online tools that run entirely in your browser — converters, generators, calculators, text utilities, and developer helpers.',
+    description: 'OmniToolify is a global directory of online tools for everyday digital tasks — converters, generators, calculators, text utilities, and developer helpers.',
   };
 }
 
@@ -151,8 +173,38 @@ export function organizationJsonLd(): JsonLd {
     '@type': 'Organization',
     name: 'OmniToolify',
     url: siteUrl(),
-    description: 'OmniToolify is a collection of free, browser-based online tools.',
+    logo: `${siteUrl()}/OmniToolify_Icon.png`,
+    description: 'OmniToolify is a collection of online tools for everyday digital tasks.',
   };
+}
+
+/** CollectionPage for category listings. */
+export function collectionPageJsonLd(name: string, description: string, path: string): JsonLd {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name,
+    description,
+    url: absoluteUrl(path),
+  };
+}
+
+/**
+ * WebPage schema for tool detail and informational pages.
+ * Deliberately minimal — only factual, visible-page properties.
+ */
+export function webPageJsonLd(name: string, description: string, path: string, isPartOf?: string): JsonLd {
+  const block: JsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name,
+    description,
+    url: absoluteUrl(path),
+  };
+  if (isPartOf) {
+    block.isPartOf = { '@type': 'WebSite', name: 'OmniToolify', url: siteUrl() };
+  }
+  return block;
 }
 
 /** Factual SoftwareApplication schema — no ratings, prices, or fabricated data. */

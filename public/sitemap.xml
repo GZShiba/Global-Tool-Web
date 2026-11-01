@@ -14,83 +14,110 @@
   </url>
   <url>
     <loc>https://toolnest.app/categories/text</loc>
+    <changefreq>weekly</changefreq>
   </url>
   <url>
     <loc>https://toolnest.app/categories/converters</loc>
+    <changefreq>weekly</changefreq>
   </url>
   <url>
     <loc>https://toolnest.app/categories/generators</loc>
+    <changefreq>weekly</changefreq>
   </url>
   <url>
     <loc>https://toolnest.app/categories/web-dev</loc>
+    <changefreq>weekly</changefreq>
   </url>
   <url>
     <loc>https://toolnest.app/categories/calculators</loc>
+    <changefreq>weekly</changefreq>
   </url>
   <url>
     <loc>https://toolnest.app/categories/files</loc>
+    <changefreq>weekly</changefreq>
   </url>
   <url>
     <loc>https://toolnest.app/tools/word-counter</loc>
+    <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://toolnest.app/tools/case-converter</loc>
+    <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://toolnest.app/tools/lorem-ipsum</loc>
+    <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://toolnest.app/tools/slug-generator</loc>
+    <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://toolnest.app/tools/json-formatter</loc>
+    <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://toolnest.app/tools/csv-json-converter</loc>
+    <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://toolnest.app/tools/base64-encoder</loc>
+    <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://toolnest.app/tools/url-encoder</loc>
+    <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://toolnest.app/tools/number-base</loc>
+    <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://toolnest.app/tools/timestamp-converter</loc>
+    <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://toolnest.app/tools/uuid-generator</loc>
+    <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://toolnest.app/tools/password-generator</loc>
+    <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://toolnest.app/tools/hash-generator</loc>
+    <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://toolnest.app/tools/regex-tester</loc>
+    <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://toolnest.app/tools/color-converter</loc>
+    <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://toolnest.app/tools/html-entities</loc>
+    <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://toolnest.app/tools/percentage-calculator</loc>
+    <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://toolnest.app/tools/unit-converter</loc>
+    <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://toolnest.app/tools/bmi-calculator</loc>
+    <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://toolnest.app/tools/image-resizer</loc>
+    <changefreq>monthly</changefreq>
   </url>
   <url>
     <loc>https://toolnest.app/tools/image-to-base64</loc>
+    <changefreq>monthly</changefreq>
   </url>
 </urlset>

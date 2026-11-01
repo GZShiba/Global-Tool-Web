@@ -14,9 +14,11 @@ import ToolRunPage from './components/ToolRunPage';
 import AboutPage from './components/AboutPage';
 import PrivacyPage from './components/PrivacyPage';
 import NotFoundPage from './components/NotFoundPage';
+import HomepageSeoContent from './components/HomepageSeoContent';
 import {
   applyPageMeta, canonicalPath, toolTitle, toolDescription,
   breadcrumbJsonLd, webSiteJsonLd, organizationJsonLd, softwareApplicationJsonLd,
+  collectionPageJsonLd, webPageJsonLd,
 } from './lib/seo';
 import { getCategory } from './data/tools';
 
@@ -27,16 +29,16 @@ function buildPageMeta(view: string, tool: ReturnType<typeof useToolStore>['sele
   switch (view) {
     case 'home':
       return {
-        title: 'OmniToolify — Free Online Tools for Everyday Work',
-        description: 'Free online tools that run entirely in your browser. Converters, generators, calculators, text utilities, and developer helpers — private, instant, and no sign-up required.',
+        title: 'OmniToolify — Discover and Use Online Tools in One Place',
+        description: 'Discover OmniToolify, a global directory of online tools for everyday digital tasks. Explore multiple tool categories, find useful utilities, and get things done in one place.',
         canonicalPath: path,
         jsonLd: [webSiteJsonLd(), organizationJsonLd()],
       };
 
     case 'tools':
       return {
-        title: 'All Tools — Browse Every Free Online Tool | OmniToolify',
-        description: 'Browse the full collection of free, browser-based tools: text utilities, converters, generators, calculators, developer helpers, and file tools. Everything runs locally in your browser.',
+        title: 'All Tools — Browse Every Online Tool | OmniToolify',
+        description: 'Browse the full OmniToolify directory: text utilities, converters, generators, calculators, developer helpers, and file tools — all in one place.',
         canonicalPath: path,
         jsonLd: [webSiteJsonLd()],
       };
@@ -47,9 +49,10 @@ function buildPageMeta(view: string, tool: ReturnType<typeof useToolStore>['sele
       }
       return {
         title: `${category.name} Tools — ${category.description} | OmniToolify`,
-        description: `${category.description}. Free ${category.name.toLowerCase()} tools that run entirely in your browser — no sign-up, no uploads.`,
+        description: `${category.description}. Browse and use ${category.name.toLowerCase()} tools on OmniToolify — no sign-up, no uploads.`,
         canonicalPath: path,
         jsonLd: [
+          collectionPageJsonLd(category.name, category.description, path),
           breadcrumbJsonLd([
             { name: 'Home', path: '/' },
             { name: 'All Tools', path: '/tools' },
@@ -70,6 +73,7 @@ function buildPageMeta(view: string, tool: ReturnType<typeof useToolStore>['sele
         canonicalPath: path,
         ogType: 'website',
         jsonLd: [
+          webPageJsonLd(tool.name, toolDescription(tool), `/tools/${tool.slug}`),
           softwareApplicationJsonLd(tool),
           breadcrumbJsonLd([
             { name: 'Home', path: '/' },
@@ -160,6 +164,7 @@ function MainAppContent() {
             <NewAndNoteworthy />
             <WhyToolNest />
             <Categories />
+            <HomepageSeoContent />
           </>
         ) : view === 'tools' ? (
           <ToolsBrowser mode="all" />
