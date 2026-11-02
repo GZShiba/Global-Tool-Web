@@ -34,6 +34,12 @@ export default defineConfig(({ mode }) => {
       // Allow access from other devices on the same LAN (e.g. 10.42.168.95:3000).
       // Dev-only convenience; the server still binds to 0.0.0.0 via the npm dev script.
       allowedHosts: true,
+      watch: {
+        // The local admin backend writes session/step tokens and CMS data into
+        // .admin-data/ (and uploads into public/admin-media/) on every request.
+        // Watching those directories causes full page reloads mid-login; ignore them.
+        ignored: ['**/.admin-data/**', '**/public/admin-media/**'],
+      },
     },
   };
 });

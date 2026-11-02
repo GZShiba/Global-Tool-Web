@@ -23,9 +23,13 @@ export interface Tool {
   privacy: string;
   popular?: boolean;
   isNew?: boolean;
+  // CMS-managed execution settings (optional, backward-compatible defaults).
+  externalUrl?: string;
+  redirectEnabled?: boolean;
+  cornerTimerEnabled?: boolean;
 }
 
-export type View = 'home' | 'tools' | 'tool' | 'run' | 'category' | 'bookmarks' | 'about' | 'privacy' | 'notfound';
+export type View = 'home' | 'tools' | 'tool' | 'run' | 'category' | 'bookmarks' | 'about' | 'privacy' | 'notfound' | 'admin';
 
 export interface ToolContextType {
   view: View;
@@ -38,4 +42,7 @@ export interface ToolContextType {
   toggleBookmark: (id: string) => void;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
+  tools: Tool[];
+  categories: ToolCategory[];
+  cmsOffline: boolean;
 }

@@ -4,4 +4,4 @@ User-agent: *
 Allow: /
 
 # Sitemap location (absolute production URL)
-Sitemap: https://toolnest.app/sitemap.xml
+Sitemap: https://omnitoolify.hollowsmp.club/sitemap.xml

@@ -5,10 +5,10 @@
  * Open Graph / Twitter cards, and JSON-LD structured data. Canonical URLs
  * are absolute; the production base URL is configurable via VITE_SITE_URL.
  *
- * IMPORTANT: the production domain is NOT verified. VITE_SITE_URL defaults
- * to the historical placeholder https://toolnest.app. All canonical / social /
- * sitemap URLs flow through siteUrl(), so setting VITE_SITE_URL to the real
- * verified domain updates the whole site consistently.
+ * IMPORTANT: VITE_SITE_URL defaults to the intended production domain
+ * https://omnitoolify.hollowsmp.club. All canonical / social / sitemap URLs
+ * flow through siteUrl(), so setting VITE_SITE_URL to the verified domain at
+ * build time updates the whole site consistently.
  */
 import { Tool } from '../types';
 
@@ -16,7 +16,7 @@ import { Tool } from '../types';
 export function siteUrl(): string {
   const custom = import.meta.env.VITE_SITE_URL as string | undefined;
   if (custom && custom.trim()) return custom.trim().replace(/\/$/, '');
-  return 'https://toolnest.app'; // placeholder — replace at deployment
+  return 'https://omnitoolify.hollowsmp.club'; // intended production domain
 }
 
 export function absoluteUrl(path: string): string {

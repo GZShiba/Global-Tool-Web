@@ -2,6 +2,12 @@
 
 A professional, globally accessible collection of **free online tools** — converters, generators, calculators, text utilities, and developer helpers. Every tool runs entirely in the browser: no accounts, no uploads, no tracking.
 
+## Production
+
+- **Brand name:** OmniToolify
+- **Intended production URL:** https://omnitoolify.hollowsmp.club
+- Set `VITE_SITE_URL` at build time to override the default base URL used for canonical URLs, Open Graph tags, and sitemap generation.
+
 ## Tech Stack
 
 - **React 19** + **TypeScript 5.8**

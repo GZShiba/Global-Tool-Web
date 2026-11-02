@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Toaster } from 'sonner';
 import { ToolProvider, useToolStore } from './context/ToolContext';
 import Header from './components/Header';
@@ -15,6 +15,9 @@ import AboutPage from './components/AboutPage';
 import PrivacyPage from './components/PrivacyPage';
 import NotFoundPage from './components/NotFoundPage';
 import HomepageSeoContent from './components/HomepageSeoContent';
+import AdminApp from './components/admin/AdminApp';
+import AdminLogin from './components/admin/AdminLogin';
+import { setSessionToken, setSessionExpiredHandler, checkSession, getSessionToken } from './lib/adminApi';
 import {
   applyPageMeta, canonicalPath, toolTitle, toolDescription,
   breadcrumbJsonLd, webSiteJsonLd, organizationJsonLd, softwareApplicationJsonLd,
@@ -133,6 +136,15 @@ function buildPageMeta(view: string, tool: ReturnType<typeof useToolStore>['sele
         jsonLd: [],
       };
 
+    case 'admin':
+      return {
+        title: 'Admin Panel | OmniToolify',
+        description: 'OmniToolify content management.',
+        canonicalPath: path,
+        noindex: true,
+        jsonLd: [],
+      };
+
     default:
       return { title: 'OmniToolify', description: 'Free online tools that run in your browser.', canonicalPath: path };
   }
@@ -140,13 +152,52 @@ function buildPageMeta(view: string, tool: ReturnType<typeof useToolStore>['sele
 
 function MainAppContent() {
   const { view, selectedTool, selectedCategory } = useToolStore();
+  const [adminAuthed, setAdminAuthed] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [adminNotice, setAdminNotice] = useState<string | null>(null);
 
   useEffect(() => {
     applyPageMeta(buildPageMeta(view, selectedTool, selectedCategory));
   }, [view, selectedTool, selectedCategory]);
 
+  useEffect(() => {
+    // Any 401 from the API caused by server-side session expiry re-renders the login.
+    setSessionExpiredHandler(() => {
+      setAdminAuthed(false);
+      setAuthChecked(true);
+      setAdminNotice('Your session expired due to inactivity. Please log in again.');
+    });
+    return () => setSessionExpiredHandler(null);
+  }, []);
+
+  useEffect(() => {
+    if (view === 'admin' && !adminAuthed) {
+      const hadToken = !!getSessionToken();
+      checkSession().then(ok => {
+        setAdminAuthed(ok);
+        setAuthChecked(true);
+        if (!ok && hadToken) setAdminNotice('Your session expired due to inactivity. Please log in again.');
+      });
+    }
+  }, [view, adminAuthed]);
+
   const invalidTool = (view === 'tool' || view === 'run') && !selectedTool;
   const invalidCategory = view === 'category' && selectedCategory !== 'all' && !getCategory(selectedCategory);
+
+  // The Admin Panel is fully independent of the public layout: no public
+  // header/footer/build prompt are rendered on any admin screen.
+  if (view === 'admin') {
+    return (
+      <div className="bg-app min-h-screen">
+        <Toaster position="top-center" />
+        {!authChecked ? null : adminAuthed ? (
+          <AdminApp onLogout={() => { setSessionToken(null); setAdminAuthed(false); setAuthChecked(false); setAdminNotice(null); }} />
+        ) : (
+          <AdminLogin notice={adminNotice} onAuthed={() => { setAdminAuthed(true); setAdminNotice(null); }} />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="bg-app min-h-screen font-sans text-neutral-900 dark:text-neutral-100 selection:bg-gray-200 dark:selection:bg-neutral-800">

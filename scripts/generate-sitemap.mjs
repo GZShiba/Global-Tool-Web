@@ -4,7 +4,7 @@
  *
  * Usage: node scripts/generate-sitemap.mjs
  * Env:   VITE_SITE_URL or SEO_SITE_URL sets the production base URL.
- *         Defaults to https://toolnest.app (centralized placeholder — replace before launch).
+ *         Defaults to https://omnitoolify.hollowsmp.club (intended production domain).
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -17,7 +17,7 @@ const OUT_FILE = path.join(OUT_DIR, 'sitemap.xml');
 
 // Centralized default placeholder — same value as src/lib/seo.ts. Set
 // VITE_SITE_URL at build time to the verified production domain.
-const base = (process.env.VITE_SITE_URL || process.env.SEO_SITE_URL || 'https://toolnest.app').replace(/\/$/, '');
+const base = (process.env.VITE_SITE_URL || process.env.SEO_SITE_URL || 'https://omnitoolify.hollowsmp.club').replace(/\/$/, '');
 
 function extractIds(source) {
   const ids = [];

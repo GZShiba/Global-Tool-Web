@@ -1,9 +1,9 @@
 import { ArrowRight } from 'lucide-react';
 import { useToolStore } from '../context/ToolContext';
-import { categories, tools } from '../data/tools';
+import { tools as staticTools } from '../data/tools';
 
 export default function Categories() {
-  const { navigate } = useToolStore();
+  const { navigate, categories: catalogCategories } = useToolStore();
 
   return (
     <section id="categories-section" className="categories-section max-w-7xl mx-auto px-4 md:px-8 mt-8 sm:mt-10 scroll-mt-24">
@@ -13,8 +13,8 @@ export default function Categories() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-5">
-        {categories.map(cat => {
-          const count = tools.filter(t => t.category === cat.id).length;
+        {catalogCategories.map(cat => {
+          const count = staticTools.filter(t => t.category === cat.id).length;
           return (
             <button
               key={cat.id}

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronRight, X, Search, Grid, List, ArrowUpDown, Bookmark, ArrowUpRight } from 'lucide-react';
 import { useToolStore } from '../context/ToolContext';
-import { categories, getCategory, searchTools } from '../data/tools';
+import { getCategory as getStaticCategory } from '../data/tools';
 import ToolCard from './ToolCard';
 import { Tool } from '../types';
 
@@ -19,21 +19,30 @@ const EMPTY: Record<string, { title: string; message: string }> = {
 export default function ToolsBrowser({ mode }: ToolsBrowserProps) {
   const {
     navigate, searchQuery, setSearchQuery, selectedCategory, bookmarks,
+    tools: catalogTools, categories: catalogCategories,
   } = useToolStore();
   const [sortBy, setSortBy] = useState('Name A–Z');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
+  const getCategory = (id: string) => getStaticCategory(id) || catalogCategories.find(c => c.id === id);
+
   const activeCategory = mode === 'category' ? selectedCategory : 'all';
   const activeCategoryData = activeCategory !== 'all' ? getCategory(activeCategory) : undefined;
 
+  const matchesQuery = (tool: Tool, q: string) => {
+    if (!q) return true;
+    const hay = `${tool.name} ${tool.tagline} ${tool.description}`.toLowerCase();
+    return hay.includes(q);
+  };
+
   let baseTools: Tool[] = [];
   if (mode === 'bookmarks') {
-    baseTools = searchTools('').filter(tool => bookmarks.includes(tool.id));
+    baseTools = catalogTools.filter(tool => bookmarks.includes(tool.id));
   } else if (activeCategory !== 'all') {
-    baseTools = searchTools(searchQuery).filter(tool => tool.category === activeCategory);
+    baseTools = catalogTools.filter(tool => tool.category === activeCategory && matchesQuery(tool, searchQuery.trim().toLowerCase()));
   } else {
-    baseTools = searchTools(searchQuery);
+    baseTools = catalogTools.filter(tool => matchesQuery(tool, searchQuery.trim().toLowerCase()));
   }
 
   const sortedTools = [...baseTools].sort((a, b) => {
@@ -56,7 +65,7 @@ export default function ToolsBrowser({ mode }: ToolsBrowserProps) {
             >
               All Tools
             </button>
-            {categories.map(cat => (
+            {catalogCategories.map(cat => (
               <button
                 key={cat.id}
                 onClick={() => { navigate('category', cat.id); setIsMobileFilterOpen(false); }}

@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Search, Menu, X, Bookmark, Sun, Moon, ArrowRight } from 'lucide-react';
 import { useToolStore } from '../context/ToolContext';
-import { categories, searchTools } from '../data/tools';
 import { View } from '../types';
 
 export default function Header() {
@@ -10,6 +9,7 @@ export default function Header() {
   const searchRef = useRef<HTMLDivElement>(null);
   const {
     navigate, searchQuery, setSearchQuery, bookmarks, theme, toggleTheme, view,
+    tools: catalogTools, categories: catalogCategories,
   } = useToolStore();
 
   useEffect(() => {
@@ -22,7 +22,7 @@ export default function Header() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const suggestions = searchQuery.trim() ? searchTools(searchQuery).slice(0, 5) : [];
+  const suggestions = searchQuery.trim() ? catalogTools.filter(t => `${t.name} ${t.tagline}`.toLowerCase().includes(searchQuery.trim().toLowerCase())).slice(0, 5) : [];
   const navItems: { label: string; target: View; active: boolean }[] = [
     { label: 'Home', target: 'home', active: view === 'home' },
     { label: 'All Tools', target: 'tools', active: view === 'tools' || view === 'category' },
@@ -37,7 +37,7 @@ export default function Header() {
 
   const openTool = (toolSlug: string) => {
     // Resolve by slug from the catalog via hash — reuse navigate with the tool object
-    const tool = searchTools('').find(t => t.slug === toolSlug);
+    const tool = catalogTools.find(t => t.slug === toolSlug);
     if (tool) navigate('tool', { tool });
     setIsSearchOpen(false);
   };
@@ -71,7 +71,7 @@ export default function Header() {
     ) : (
       <div className="mt-2 flex flex-col gap-0.5">
         <span className="text-[9px] font-bold uppercase tracking-widest text-faint px-2 py-1">Popular categories</span>
-        {categories.slice(0, 3).map(cat => (
+        {catalogCategories.slice(0, 3).map(cat => (
           <button
             key={cat.id}
             onClick={() => { navigate('category', { category: cat.id }); setIsSearchOpen(false); }}

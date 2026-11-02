@@ -1,14 +1,32 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import { useToolStore } from '../context/ToolContext';
 import { getPopularTools } from '../data/tools';
+import { getPublicPopular } from '../lib/adminApi';
 import ToolCard from './ToolCard';
 
 export default function FeaturedTools() {
-  const { navigate } = useToolStore();
+  const { navigate, tools: catalogTools } = useToolStore();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [cmsToolIds, setCmsToolIds] = useState<string[] | null>(null);
+  const [cmsEnabled, setCmsEnabled] = useState(true);
 
-  const featured = getPopularTools();
+  useEffect(() => {
+    let cancelled = false;
+    getPublicPopular().then(cfg => {
+      if (cancelled || !cfg) return;
+      setCmsEnabled(cfg.enabled);
+      setCmsToolIds(cfg.toolIds);
+    }).catch(() => { /* offline → default popular */ });
+    return () => { cancelled = true; };
+  }, []);
+
+  let featured = getPopularTools();
+  if (cmsEnabled && cmsToolIds) {
+    const byId = new Map(catalogTools.map(t => [t.id, t]));
+    const ordered = cmsToolIds.map(id => byId.get(id)).filter((t): t is (typeof catalogTools)[number] => Boolean(t));
+    if (ordered.length) featured = ordered.slice(0, 8);
+  }
 
   return (
     <section className="max-w-7xl mx-auto px-4 md:px-8 mt-8 sm:mt-10">

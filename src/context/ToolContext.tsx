@@ -1,7 +1,8 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { toast } from 'sonner';
 import { Tool, View, ToolContextType } from '../types';
-import { getToolBySlug, categories } from '../data/tools';
+import { categories as staticCategories, tools as staticTools, getToolBySlug } from '../data/tools';
+import { useCmsCatalog } from '../lib/cmsCatalog';
 
 const ToolContext = createContext<ToolContextType | null>(null);
 
@@ -15,7 +16,7 @@ export const useToolStore = () => {
 /* Clean-URL router with legacy hash fallback                          */
 /* ------------------------------------------------------------------ */
 
-export const CLEAN_ROUTES = ['tools', 'categories', 'bookmarks', 'about', 'privacy'] as const;
+export const CLEAN_ROUTES = ['tools', 'categories', 'bookmarks', 'about', 'privacy', 'zx'] as const;
 export const LEGACY_HASH_ROUTES = ['tools', 'tool', 'run', 'category', 'bookmarks', 'about'] as const;
 
 interface Route {
@@ -49,6 +50,9 @@ function parsePathname(pathname: string): Route {
       return { view: 'about', toolSlug: null, categoryId: null };
     case 'privacy':
       return { view: 'privacy', toolSlug: null, categoryId: null };
+    case 'zx':
+      if (second === 'adx') return { view: 'admin', toolSlug: null, categoryId: null };
+      return { view: 'notfound', toolSlug: null, categoryId: null };
     default:
       // Unknown clean path → standard not-found handling.
       return { view: 'notfound', toolSlug: null, categoryId: null };
@@ -86,6 +90,7 @@ function buildCleanPath(view: View, opts?: { tool?: Tool | null; category?: stri
     case 'about': return '/about';
     case 'privacy': return '/privacy';
     case 'bookmarks': return '/bookmarks';
+    case 'admin': return '/zx/adx';
     default: return '/';
   }
 }
@@ -130,9 +135,9 @@ export const ToolProvider = ({ children }: ToolProviderProps) => {
   );
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedTool, setSelectedTool] = useState<Tool | null>(
-    route.toolSlug ? getToolBySlug(route.toolSlug) || null : null
-  );
+  const [activeSlug, setActiveSlug] = useState<string | null>(route.toolSlug);
+  const catalog = useCmsCatalog();
+  const { tools: catalogTools, categories: catalogCategories, offline: cmsOffline } = catalog;
   const [bookmarks, setBookmarks] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -150,9 +155,13 @@ export const ToolProvider = ({ children }: ToolProviderProps) => {
     return 'dark';
   });
 
+  const selectedTool = activeSlug
+    ? catalogTools.find(t => t.slug === activeSlug) || null
+    : null;
+
   const applyRoute = useCallback((next: Route) => {
     setRoute(next);
-    setSelectedTool(next.toolSlug ? getToolBySlug(next.toolSlug) || null : null);
+    setActiveSlug(next.toolSlug);
     if (next.categoryId) setSelectedCategory(next.categoryId);
   }, []);
 
@@ -223,9 +232,12 @@ export const ToolProvider = ({ children }: ToolProviderProps) => {
     toggleBookmark,
     theme,
     toggleTheme,
+    tools: catalogTools,
+    categories: catalogCategories,
+    cmsOffline: cmsOffline,
   };
 
   return <ToolContext.Provider value={value}>{children}</ToolContext.Provider>;
 };
 
-export { categories as toolCategories };
+export { staticCategories as toolCategories };

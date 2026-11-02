@@ -4,7 +4,7 @@ import {
   ListChecks, Info, AlertCircle, Wrench, LayoutGrid, Check,
 } from 'lucide-react';
 import { useToolStore } from '../context/ToolContext';
-import { getCategory, getRelatedTools } from '../data/tools';
+import { getCategory } from '../data/tools';
 import ToolCard from './ToolCard';
 import ToolVisual from './ToolVisual';
 import ToolRedirectCountdown from './ToolRedirectCountdown';
@@ -104,14 +104,16 @@ const TABS = [
 ] as const;
 
 export default function ToolPage() {
-  const { selectedTool, navigate, bookmarks, toggleBookmark } = useToolStore();
+  const { selectedTool, navigate, bookmarks, toggleBookmark, tools: catalogTools } = useToolStore();
   const [activeTab, setActiveTab] = useState<(typeof TABS)[number]['id']>('overview');
   const [expanded, setExpanded] = useState<string[]>(['overview']);
 
   if (!selectedTool) return null;
   const tool = selectedTool;
   const category = getCategory(tool.category);
-  const related = getRelatedTools(tool);
+  const related = catalogTools
+    .filter(t => t.id !== tool.id && (t.tags.some(tag => tool.tags.includes(tag)) || t.category === tool.category))
+    .slice(0, 4);
   const isBookmarked = bookmarks.includes(tool.id);
 
   const toggleSection = (id: string) =>
@@ -203,9 +205,15 @@ export default function ToolPage() {
 
               <p className="text-[13px] text-secondary font-normal leading-relaxed mb-6 line-clamp-3">{tool.description}</p>
 
-              {/* Primary action — opens the working tool interface */}
+              {/* Primary action — opens the working tool interface (or the configured external URL) */}
               <button
-                onClick={() => navigate('run', { tool })}
+                onClick={() => {
+                  if (tool.redirectEnabled && tool.externalUrl && /^https?:\/\/[^\s]+$/i.test(tool.externalUrl)) {
+                    window.location.href = tool.externalUrl;
+                    return;
+                  }
+                  navigate('run', { tool });
+                }}
                 className="w-full bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 py-3.5 rounded-xl font-bold uppercase tracking-wider text-xs hover:opacity-90 transition-all shadow-md flex items-center justify-center gap-2 active:scale-[0.98]"
               >
                 <Play size={14} fill="currentColor" /> Open Tool
@@ -285,10 +293,13 @@ export default function ToolPage() {
         </div>
       </div>
 
-      {/* Auto-redirect countdown — details routes only; keyed so switching tools resets it */}
-      <div key={tool.id}>
-        <ToolRedirectCountdown tool={tool} />
-      </div>
+      {/* Auto-redirect countdown — details routes only; keyed so switching tools resets it.
+          Hidden entirely when the CMS disables the corner timer for this tool. */}
+      {tool.cornerTimerEnabled !== false && (
+        <div key={tool.id}>
+          <ToolRedirectCountdown tool={tool} />
+        </div>
+      )}
     </div>
   );
 }

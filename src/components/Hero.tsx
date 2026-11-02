@@ -5,11 +5,17 @@ import { ChevronLeft, ChevronRight, ArrowRight, Play } from 'lucide-react';
 import { useToolStore } from '../context/ToolContext';
 import { tools } from '../data/tools';
 import ToolVisual from './ToolVisual';
+import { getPublicHeroSlides, HeroSlide } from '../lib/adminApi';
 
 const SLIDE_IDS = ['json-formatter', 'password-generator', 'image-resizer', 'word-counter', 'regex-tester'];
 
 const AUTO_ROTATE_MS = 6000;
 const DRAG_THRESHOLD = 60; // px — horizontal distance that triggers a slide change
+
+interface HeroSlideData {
+  tool: (typeof tools)[number];
+  slide: HeroSlide;
+}
 
 export default function Hero() {
   const { navigate } = useToolStore();
@@ -17,14 +23,34 @@ export default function Hero() {
   const [isPaused, setIsPaused] = useState(false);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [cmsSlides, setCmsSlides] = useState<HeroSlideData[] | null>(null);
 
   const hoverRef = useRef(false);
   const suppressClickRef = useRef(false);
   const dragRef = useRef({ active: false, startX: 0, dx: 0, moved: false });
 
-  const slides = SLIDE_IDS
-    .map(id => tools.find(t => t.id === id))
-    .filter((t): t is NonNullable<typeof t> => Boolean(t));
+  // Load CMS-managed hero slides; fall back to the default curated set.
+  useEffect(() => {
+    let cancelled = false;
+    getPublicHeroSlides().then(slides => {
+      if (cancelled || !slides) return;
+      const mapped = slides
+        .map(slide => {
+          const tool = tools.find(t => t.slug === slide.toolSlug);
+          return tool ? { tool, slide } : null;
+        })
+        .filter((x): x is HeroSlideData => x !== null);
+      if (mapped.length) setCmsSlides(mapped);
+    }).catch(() => { /* offline → default slides */ });
+    return () => { cancelled = true; };
+  }, []);
+
+  const slides: HeroSlideData[] = cmsSlides && cmsSlides.length
+    ? cmsSlides
+    : SLIDE_IDS
+        .map(id => tools.find(t => t.id === id))
+        .filter((t): t is NonNullable<typeof t> => Boolean(t))
+        .map(tool => ({ tool, slide: null as unknown as HeroSlide }));
 
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -74,7 +100,11 @@ export default function Hero() {
   };
 
   if (slides.length === 0) return null;
-  const slide = slides[current];
+  const { tool: slide, slide: cms } = slides[current];
+  const title = cms?.title || slide.name;
+  const eyebrow = cms?.eyebrow || `Featured · ${slide.category.replace('-', ' & ')}`;
+  const description = cms?.description || slide.description;
+  const primaryLabel = cms?.primaryLabel || 'Open Tool';
 
   return (
     <section
@@ -145,16 +175,16 @@ export default function Hero() {
                 <div className="flex items-center gap-2 mb-3 sm:mb-4">
                   <span className="h-[2px] w-8 bg-blue-400/70"></span>
                   <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.25em] text-white/70">
-                    Featured · {slide.category.replace('-', ' & ')}
+                    {eyebrow}
                   </span>
                 </div>
 
                 <h2 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold mb-3 sm:mb-4 tracking-tight leading-[1.08] text-white">
-                  {slide.name}
+                  {title}
                 </h2>
 
                 <p className="text-xs sm:text-sm md:text-base text-gray-300 font-normal leading-relaxed mb-5 sm:mb-7 line-clamp-3 max-w-md">
-                  {slide.description}
+                  {description}
                 </p>
 
                 <div className="flex flex-wrap gap-3">
@@ -163,7 +193,7 @@ export default function Hero() {
                     className="group bg-white hover:bg-neutral-100 text-black px-6 py-3 rounded-xl font-bold uppercase tracking-wider text-[10px] sm:text-xs flex items-center gap-2 transition-all active:scale-95"
                   >
                     <Play size={13} fill="currentColor" />
-                    <span>Open Tool</span>
+                    <span>{primaryLabel}</span>
                   </button>
 
                   <button
@@ -201,9 +231,9 @@ export default function Hero() {
         <div className="absolute bottom-7 right-6 sm:bottom-9 sm:right-12 lg:right-20 z-30 flex items-center gap-2">
           {slides.map((s, idx) => (
             <button
-              key={s.id}
+              key={s.tool.id}
               onClick={() => goTo(idx)}
-              aria-label={`Go to slide ${idx + 1}: ${s.name}`}
+              aria-label={`Go to slide ${idx + 1}: ${s.tool.name}`}
               aria-current={current === idx}
               className={`h-1.5 rounded-full transition-all duration-300 focus-visible:outline-2 focus-visible:outline-blue-400 ${current === idx ? 'bg-blue-500 w-8' : 'bg-white/25 hover:bg-white/50 w-3'}`}
             />
