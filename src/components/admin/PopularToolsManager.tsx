@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Star, Plus, X, ChevronUp, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { PopularConfig, getPopularConfig, updatePopularConfig } from '../../lib/adminApi';
+import { updatePopularConfigCloud } from '../../lib/adminWriteLayer';
 import { tools, getCategory } from '../../data/tools';
 import { AdminBtn, AdminField, AdminSpinner, adminInputClass } from './adminUi';
 
@@ -38,7 +39,8 @@ export default function PopularToolsManager() {
   const save = async () => {
     setBusy(true);
     try {
-      await updatePopularConfig(cfg);
+      const res = await updatePopularConfigCloud(cfg);
+      if (!res.ok) throw new Error(res.error || 'Save failed');
       toast.success('Popular tools configuration saved');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Save failed');

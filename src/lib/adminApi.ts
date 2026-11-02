@@ -202,6 +202,11 @@ export const deleteCmsCategory = (id: string) => request<{ ok: boolean }>(`/api/
 export const reorderCmsCategories = (orderedIds: string[]) => request<{ ok: boolean }>('/api/categories/reorder', { method: 'POST', body: JSON.stringify({ orderedIds }) });
 
 export const listMedia = () => request<{ ok: boolean; media: MediaItem[] }>('/api/media').then(d => d.media);
+export const createMediaRecord = (meta: { url: string; originalName: string; size: number }) =>
+  request<{ ok: boolean; media: MediaItem }>('/api/media', {
+    method: 'POST',
+    body: JSON.stringify({ ...meta, originalName: meta.originalName }),
+  }).then(d => d.media);
 export const uploadMedia = async (file: File): Promise<MediaItem> => {
   const data = await request<{ ok: boolean; media: MediaItem }>('/api/media', {
     method: 'POST',
@@ -249,6 +254,13 @@ export const createAdministrator = (currentPassword: string, currentPin: string,
     method: 'POST',
     body: JSON.stringify({ currentPassword, currentPin, email, password }),
   });
+
+/** Obtain a short-lived HMAC ticket from the authenticated local admin API. */
+export const obtainFirebaseTicket = () =>
+  request<{ ok: boolean; ticket: string }>('/api/admin/firebase-ticket', { method: 'POST' }).then(d => d.ticket);
+
+export const firebaseFunctionsUrl = () =>
+  (import.meta.env.VITE_FIREBASE_FUNCTIONS_URL as string | undefined) || '';
 
 /* ---- Public reads (used by the public site to sync CMS content) ---- */
 export const getPublicHeroSlides = () => request<{ ok: boolean; slides: HeroSlide[] }>('/api/public/hero-slides').then(d => d.slides).catch(() => null);

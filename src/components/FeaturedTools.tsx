@@ -3,6 +3,7 @@ import { ChevronUp, ChevronDown } from 'lucide-react';
 import { useToolStore } from '../context/ToolContext';
 import { getPopularTools } from '../data/tools';
 import { getPublicPopular } from '../lib/adminApi';
+import { getPopularConfigCached } from '../lib/firestoreCms';
 import ToolCard from './ToolCard';
 
 export default function FeaturedTools() {
@@ -13,11 +14,23 @@ export default function FeaturedTools() {
 
   useEffect(() => {
     let cancelled = false;
-    getPublicPopular().then(cfg => {
-      if (cancelled || !cfg) return;
-      setCmsEnabled(cfg.enabled);
-      setCmsToolIds(cfg.toolIds);
-    }).catch(() => { /* offline → default popular */ });
+    (async () => {
+      try {
+        const fbCfg = await getPopularConfigCached();
+        if (cancelled) return;
+        if (fbCfg) {
+          setCmsEnabled(fbCfg.enabled);
+          setCmsToolIds(fbCfg.toolIds);
+          return;
+        }
+        const localCfg = await getPublicPopular();
+        if (cancelled || !localCfg) return;
+        setCmsEnabled(localCfg.enabled);
+        setCmsToolIds(localCfg.toolIds);
+      } catch {
+        /* offline → default popular */
+      }
+    })();
     return () => { cancelled = true; };
   }, []);
 

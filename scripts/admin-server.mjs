@@ -23,6 +23,7 @@ import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Readable } from 'node:stream';
+import { mintTicket } from './bridge-ticket.mjs';
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = process.env.ADMIN_DATA_ROOT ? path.resolve(process.env.ADMIN_DATA_ROOT) : path.resolve(SCRIPT_DIR, '..');
@@ -549,6 +550,23 @@ function createServer() {
         return;
       }
       if (url.pathname === '/api/media' && req.method === 'POST') {
+        const ct = req.headers['content-type'] || '';
+        if (ct.includes('application/json')) {
+          // JSON metadata record for cloud-hosted files (e.g. Firebase Storage URLs).
+          const meta = await readBody(req);
+          const ext = path.extname((meta.originalName || 'image.png')).toLowerCase() || '.png';
+          if (!['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg'].includes(ext)) throw new Error('Unsupported file type');
+          const id = randomToken().slice(0, 12);
+          const item = {
+            id, filename: meta.url || '', originalName: meta.originalName || 'image.png', ext,
+            url: meta.url || '', alt: '', size: Number(meta.size) || 0,
+            createdAt: new Date().toISOString(), hosted: true,
+          };
+          db.media.push(item);
+          await writeDb(db);
+          sendJson(res, 201, { ok: true, media: item });
+          return;
+        }
         const raw = await readBody(req);
         if (!Buffer.isBuffer(raw)) throw new Error('Expected binary upload');
         const name = decodeURIComponent(String(req.headers['x-file-name'] || 'image.png')).split(/[\\/]/).pop();
@@ -698,6 +716,20 @@ function createServer() {
         await saveAuth(auth);
         // New PIN is returned exactly once for the setup flow; never persisted in plaintext.
         sendJson(res, 201, { ok: true, administrator: { id: adminId, email, status: 'active' }, pin });
+        return;
+      }
+
+      if (url.pathname === '/api/admin/firebase-ticket' && req.method === 'POST') {
+        // Mint a short-lived HMAC ticket for the hosted CMS write function.
+        // Requires an existing authenticated admin session (enforced above).
+        let ticket;
+        try {
+          ticket = mintTicket(session.admin.id);
+        } catch (err) {
+          sendJson(res, 503, { ok: false, error: err.message });
+          return;
+        }
+        sendJson(res, 200, { ok: true, ticket });
         return;
       }
 

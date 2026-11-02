@@ -6,6 +6,7 @@ import { useToolStore } from '../context/ToolContext';
 import { tools } from '../data/tools';
 import ToolVisual from './ToolVisual';
 import { getPublicHeroSlides, HeroSlide } from '../lib/adminApi';
+import { getActiveHeroSlidesCached } from '../lib/firestoreCms';
 
 const SLIDE_IDS = ['json-formatter', 'password-generator', 'image-resizer', 'word-counter', 'regex-tester'];
 
@@ -29,19 +30,36 @@ export default function Hero() {
   const suppressClickRef = useRef(false);
   const dragRef = useRef({ active: false, startX: 0, dx: 0, moved: false });
 
-  // Load CMS-managed hero slides; fall back to the default curated set.
+  // Load CMS-managed hero slides: Firestore first, then local API, then the default set.
   useEffect(() => {
     let cancelled = false;
-    getPublicHeroSlides().then(slides => {
-      if (cancelled || !slides) return;
-      const mapped = slides
-        .map(slide => {
-          const tool = tools.find(t => t.slug === slide.toolSlug);
-          return tool ? { tool, slide } : null;
-        })
-        .filter((x): x is HeroSlideData => x !== null);
-      if (mapped.length) setCmsSlides(mapped);
-    }).catch(() => { /* offline → default slides */ });
+    (async () => {
+      try {
+        const fbSlides = await getActiveHeroSlidesCached();
+        if (cancelled) return;
+        if (fbSlides && fbSlides.length) {
+          const mapped = fbSlides
+            .map(slide => {
+              const tool = tools.find(t => t.slug === slide.toolSlug);
+              return tool ? { tool, slide } : null;
+            })
+            .filter((x): x is HeroSlideData => x !== null);
+          if (mapped.length) setCmsSlides(mapped);
+          return;
+        }
+        const localSlides = await getPublicHeroSlides();
+        if (cancelled || !localSlides) return;
+        const mapped = localSlides
+          .map(slide => {
+            const tool = tools.find(t => t.slug === slide.toolSlug);
+            return tool ? { tool, slide } : null;
+          })
+          .filter((x): x is HeroSlideData => x !== null);
+        if (mapped.length) setCmsSlides(mapped);
+      } catch {
+        /* offline → default slides */
+      }
+    })();
     return () => { cancelled = true; };
   }, []);
 

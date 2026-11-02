@@ -15,6 +15,7 @@ import { Wrench } from 'lucide-react';
 import { Tool, ToolCategory } from '../types';
 import { tools as staticTools, categories as staticCategories } from '../data/tools';
 import { CmsTool, CmsCategory, getPublicCategories, getPublicTools } from './adminApi';
+import { getEnabledCategoriesCached, getPublishedToolsCached } from './firestoreCms';
 
 export interface CmsCatalog {
   tools: Tool[];
@@ -99,6 +100,20 @@ export async function loadCmsCatalog(force = false): Promise<CmsCatalog> {
   if (cachePromise && !force) return cachePromise;
 
   cachePromise = (async () => {
+    // 1. Prefer Firestore (published/enabled only) when configured.
+    const [fbTools, fbCategories] = await Promise.all([getPublishedToolsCached(), getEnabledCategoriesCached()]);
+    if (fbTools && fbCategories) {
+      const catalog: CmsCatalog = {
+        tools: mergeTools(fbTools),
+        categories: mergeCategories(fbCategories),
+        offline: false,
+        loaded: true,
+      };
+      cacheValue = catalog;
+      return catalog;
+    }
+
+    // 2. Fallback: local admin API (or static when the API is unreachable).
     const [cmsTools, cmsCats] = await Promise.all([getPublicTools(), getPublicCategories()]);
     const offline = cmsTools === null && cmsCats === null;
     const catalog: CmsCatalog = {

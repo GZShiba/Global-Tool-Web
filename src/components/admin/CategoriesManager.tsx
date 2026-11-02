@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Plus, Pencil, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { CmsCategory, createCmsCategory, deleteCmsCategory, listCmsCategories, reorderCmsCategories, updateCmsCategory } from '../../lib/adminApi';
+import { createCmsCategoryCloud, deleteCmsCategoryCloud, reorderCmsCategoriesCloud, updateCmsCategoryCloud } from '../../lib/adminWriteLayer';
 import { AdminBtn, AdminEmpty, AdminField, AdminModal, AdminSpinner, adminInputClass } from './adminUi';
 import { tools } from '../../data/tools';
 
@@ -29,7 +30,8 @@ export default function CategoriesManager() {
     list.splice(target, 0, item);
     setCats(list);
     try {
-      await reorderCmsCategories(list.map(c => c.id!));
+      const res = await reorderCmsCategoriesCloud(list.map(c => c.id!));
+      if (!res.ok) throw new Error(res.error || 'Reorder failed');
       toast.success('Order updated');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Reorder failed');
@@ -80,8 +82,10 @@ export default function CategoriesManager() {
       {modal && (
         <CategoryFormModal cat={modal.cat} onClose={() => setModal(null)} onSave={async c => {
           try {
-            if (modal.mode === 'create') await createCmsCategory(c);
-            else if (c.id) await updateCmsCategory(c.id, c);
+            const res = modal.mode === 'create'
+              ? await createCmsCategoryCloud(c)
+              : await updateCmsCategoryCloud(c.id, c);
+            if (!res.ok) throw new Error(res.error || 'Save failed');
             toast.success('Category saved');
             setModal(null);
             load();
@@ -97,8 +101,11 @@ export default function CategoriesManager() {
           <div className="flex justify-end gap-2.5">
             <AdminBtn variant="secondary" onClick={() => setConfirmDelete(null)}>Cancel</AdminBtn>
             <AdminBtn variant="danger" onClick={async () => {
-              try { await deleteCmsCategory(confirmDelete.id); toast.success('Category deleted'); setConfirmDelete(null); load(); }
-              catch (err) { toast.error(err instanceof Error ? err.message : 'Delete failed'); }
+              try {
+                const res = await deleteCmsCategoryCloud(confirmDelete.id);
+                if (!res.ok) throw new Error(res.error || 'Delete failed');
+                toast.success('Category deleted'); setConfirmDelete(null); load();
+              } catch (err) { toast.error(err instanceof Error ? err.message : 'Delete failed'); }
             }}>Delete</AdminBtn>
           </div>
         </AdminModal>

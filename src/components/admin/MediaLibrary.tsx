@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Upload, Copy, Trash2, Search, Check } from 'lucide-react';
 import { toast } from 'sonner';
-import { MediaItem, deleteMedia, listMedia, updateMedia, uploadMedia } from '../../lib/adminApi';
+import { MediaItem, createMediaRecord, deleteMedia, listMedia, updateMedia, uploadMedia } from '../../lib/adminApi';
+import { getStorageSafe } from '../../lib/firebase';
+import { uploadCmsFile } from '../../lib/firebaseStorage';
+import { sanitizeStoragePath } from '../../lib/cmsPure';
 import { AdminBtn, AdminEmpty, AdminModal, AdminSpinner } from './adminUi';
 
 export default function MediaLibrary() {
@@ -26,10 +29,18 @@ export default function MediaLibrary() {
   const onUpload = async (files: FileList | null) => {
     if (!files || !files.length) return;
     setUploading(true);
+    const storage = await getStorageSafe().catch(() => null);
     try {
       for (const file of Array.from(files)) {
         if (file.size > 8 * 1024 * 1024) {
           toast.error(`${file.name} exceeds 8 MB`);
+          continue;
+        }
+        if (storage) {
+          // Cloud mode: upload to Firebase Storage, then record the URL locally.
+          const base = sanitizeStoragePath(`cms-media/tool-images/${Date.now()}-${file.name.replace(/\s+/g, '-')}`);
+          const url = await uploadCmsFile(file, base);
+          await createMediaRecord({ url, originalName: file.name, size: file.size });
           continue;
         }
         await uploadMedia(file);

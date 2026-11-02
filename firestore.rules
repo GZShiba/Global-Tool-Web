@@ -1,0 +1,34 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Public visitors may read ONLY published/enabled/active CMS records.
+    // Drafts, archived tools and disabled categories are never readable
+    // through the public queries.
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    // Administrators are identified by the `admin` custom claim set on their
+    // Firebase Auth token (must be assigned server-side with the Admin SDK —
+    // never accepted from the client).
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.admin == true;
+    }
+
+    match /cms_tools/{docId} {
+      allow read: if resource.data.status == 'published';
+      allow write: if isAdmin();
+    }
+    match /cms_categories/{docId} {
+      allow read: if resource.data.enabled == true;
+      allow write: if isAdmin();
+    }
+    match /cms_heroSlides/{docId} {
+      allow read: if resource.data.active == true;
+      allow write: if isAdmin();
+    }
+    match /cms_popular/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}

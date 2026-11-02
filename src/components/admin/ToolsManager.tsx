@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { Plus, Pencil, Trash2, Copy, Search, Archive, Eye, Sparkles, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { CmsTool, createCmsTool, deleteCmsTool, listCmsTools, updateCmsTool } from '../../lib/adminApi';
+import { createCmsToolCloud, deleteCmsToolCloud, updateCmsToolCloud } from '../../lib/adminWriteLayer';
 import { toolRegistry } from '../../tools/registry';
 import { categories, getCategory } from '../../data/tools';
 import { recommendRelated } from '../../lib/relatedRecommendations';
@@ -41,8 +42,8 @@ export default function ToolsManager({ mode }: { mode: 'list' | 'add' }) {
 
   const saveTool = async (tool: CmsTool, isNew: boolean) => {
     try {
-      if (isNew) await createCmsTool(tool);
-      else await updateCmsTool(tool.id, tool);
+      const res = isNew ? await createCmsToolCloud(tool) : await updateCmsToolCloud(tool.id, tool);
+      if (!res.ok) throw new Error(res.error || 'Save failed');
       toast.success(isNew ? 'Tool created' : 'Tool saved');
       setCreating(false);
       setEditing(null);
@@ -129,8 +130,11 @@ export default function ToolsManager({ mode }: { mode: 'list' | 'add' }) {
           <div className="flex justify-end gap-2.5">
             <AdminBtn variant="secondary" onClick={() => setConfirmDelete(null)}>Cancel</AdminBtn>
             <AdminBtn variant="danger" onClick={async () => {
-              try { await deleteCmsTool(confirmDelete.id); toast.success('Tool deleted'); setConfirmDelete(null); load(); }
-              catch (err) { toast.error(err instanceof Error ? err.message : 'Delete failed'); }
+              try {
+                const res = await deleteCmsToolCloud(confirmDelete.id);
+                if (!res.ok) throw new Error(res.error || 'Delete failed');
+                toast.success('Tool deleted'); setConfirmDelete(null); load();
+              } catch (err) { toast.error(err instanceof Error ? err.message : 'Delete failed'); }
             }}>Permanently Delete</AdminBtn>
           </div>
         </AdminModal>
@@ -143,7 +147,8 @@ async function duplicateTool(tool: CmsTool, reload: () => Promise<void>) {
   const copy: CmsTool = { ...tool, id: '', name: `${tool.name} (copy)`, slug: `${tool.slug}-copy-${Date.now().toString(36)}`, status: 'draft' };
   delete (copy as { id?: string }).id;
   try {
-    await createCmsTool(copy);
+    const res = await createCmsToolCloud(copy);
+    if (!res.ok) throw new Error(res.error || 'Duplicate failed');
     toast.success('Tool duplicated as draft');
     await reload();
   } catch (err) {
@@ -153,7 +158,8 @@ async function duplicateTool(tool: CmsTool, reload: () => Promise<void>) {
 
 async function setStatus(tool: CmsTool, status: CmsTool['status'], reload: () => Promise<void>) {
   try {
-    await updateCmsTool(tool.id, { status });
+    const res = await updateCmsToolCloud(tool.id, { status });
+    if (!res.ok) throw new Error(res.error || 'Status change failed');
     toast.success(`Tool ${status}`);
     await reload();
   } catch (err) {

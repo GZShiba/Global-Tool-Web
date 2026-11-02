@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Plus, Pencil, Trash2, Copy, Eye, EyeOff, ChevronUp, ChevronDown, Link2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { HeroSlide, createHeroSlide, deleteHeroSlide, listHeroSlides, reorderHeroSlides, updateHeroSlide } from '../../lib/adminApi';
+import { createHeroSlideCloud, deleteHeroSlideCloud, reorderHeroSlidesCloud, updateHeroSlideCloud } from '../../lib/adminWriteLayer';
 import { tools, getCategory } from '../../data/tools';
 import { AdminBtn, AdminEmpty, AdminField, AdminModal, AdminSpinner, adminInputClass } from './adminUi';
 
@@ -51,7 +52,8 @@ export default function HeroSlidesManager() {
     const orderedIds = list.map(s => s.id!).filter(Boolean);
     setSlides(list);
     try {
-      await reorderHeroSlides(orderedIds);
+      const res = await reorderHeroSlidesCloud(orderedIds);
+      if (!res.ok) throw new Error(res.error || 'Reorder failed');
       toast.success('Slide order updated');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Reorder failed');
@@ -64,7 +66,8 @@ export default function HeroSlidesManager() {
     const next = { ...slide, active: !slide.active };
     setSlides(prev => prev ? prev.map(s => s.id === slide.id ? next : s) : prev);
     try {
-      await updateHeroSlide(slide.id, { active: next.active });
+      const res = await updateHeroSlideCloud(slide.id, { active: next.active });
+      if (!res.ok) throw new Error(res.error || 'Update failed');
       toast.success(next.active ? 'Slide enabled' : 'Slide disabled');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Update failed');
@@ -76,7 +79,8 @@ export default function HeroSlidesManager() {
     try {
       const copy = { ...defaultSlide(slide.toolSlug), ...slide, id: undefined, title: `${slide.title} (copy)`, active: false };
       delete copy.id;
-      await createHeroSlide(copy);
+      const res = await createHeroSlideCloud(copy);
+      if (!res.ok) throw new Error(res.error || 'Duplicate failed');
       toast.success('Slide duplicated (inactive by default)');
       load();
     } catch (err) {
@@ -86,13 +90,11 @@ export default function HeroSlidesManager() {
 
   const saveSlide = async (slide: HeroSlide) => {
     try {
-      if (modal?.mode === 'create') {
-        await createHeroSlide(slide);
-        toast.success('Slide created');
-      } else if (slide.id) {
-        await updateHeroSlide(slide.id, slide);
-        toast.success('Slide saved');
-      }
+      const res = modal?.mode === 'create'
+        ? await createHeroSlideCloud(slide)
+        : slide.id ? await updateHeroSlideCloud(slide.id, slide) : null;
+      if (res && !res.ok) throw new Error(res.error || 'Save failed');
+      toast.success(modal?.mode === 'create' ? 'Slide created' : 'Slide saved');
       setModal(null);
       load();
     } catch (err) {
