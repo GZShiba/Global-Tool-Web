@@ -53,6 +53,24 @@ VITE_FIREBASE_MEASUREMENT_ID=
 
 No server secrets exist; never add `ADMIN_*` secrets to `VITE_` vars.
 
+## Production (Cloudflare) build — CRITICAL
+
+Vite bakes `VITE_*` variables into the JS bundle **at build time**. If the
+deployed Cloudflare build was made without them, Firebase is unconfigured in
+the browser and the homepage CMS sections fail with “could not be loaded”
+(Featured Carousel, Most Popular, New & Noteworthy) even though rules and data
+are fine.
+
+- Set all `VITE_FIREBASE_*` above in the **build environment**:
+  - Cloudflare Pages → Settings → Environment variables (they are injected
+    into the build step).
+  - Cloudflare Workers → build locally with `.env` present, then upload
+    `dist/` (runtime Variables do NOT bake into the bundle).
+- Run `npm run deploy:check` before building to verify.
+- After deploy: confirm the served JS contains the project id
+  (`grep -l omnitoolify dist/assets/*.js`) and that the browser console shows
+  no `[firebase] Firestore unavailable` warning.
+
 ## How it works
 
 - Public website: reads published CMS content from Firestore when configured;

@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
+    "deploy:check": "node scripts/check-firebase-env.mjs",
     "sitemap": "node scripts/generate-sitemap.mjs",
     "og:cover": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/generate-og-cover.ps1",
     "checkpoint": "node scripts/git-checkpoint.mjs checkpoint",

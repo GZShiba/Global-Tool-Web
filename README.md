@@ -8,6 +8,55 @@ A professional, globally accessible collection of **free online tools** — conv
 - **Intended production URL:** https://omnitoolify.hollowsmp.club
 - Set `VITE_SITE_URL` at build time to override the default base URL used for canonical URLs, Open Graph tags, and sitemap generation.
 
+### Deploying to Cloudflare (Workers / Pages)
+
+The production build reads Firestore content through the Firebase web SDK. Vite
+bakes `VITE_*` variables into the JS bundle **at build time** — if they are
+missing when `npm run build` runs, the deployed site loads but every CMS-backed
+homepage section (Featured Carousel, Most Popular, New & Noteworthy) fails with
+“could not be loaded” errors while the Firestore rules and data are fine.
+
+Required variables (values come from your local `.env` / Firebase Console for
+project `omnitoolify`):
+
+```
+VITE_FIREBASE_API_KEY
+VITE_FIREBASE_AUTH_DOMAIN
+VITE_FIREBASE_PROJECT_ID
+VITE_FIREBASE_STORAGE_BUCKET
+VITE_FIREBASE_MESSAGING_SENDER_ID
+VITE_FIREBASE_APP_ID
+VITE_FIREBASE_MEASUREMENT_ID   (optional)
+```
+
+Where to set them:
+
+- **Cloudflare Pages** → project → **Settings → Environment variables** — they
+  are injected into the build step (set them before kicking off a new build).
+- **Cloudflare Workers (static assets / Workers Sites)** → build locally with
+  the env vars present (they are in `.env`), then upload the generated `dist/`;
+  or run the build in CI with the variables configured in the CI environment
+  (Workers → Settings → Variables only applies to runtime, not builds — the
+  bake must happen at build time).
+
+Guard + verification:
+
+```
+npm run deploy:check   # fails if any required VITE_FIREBASE_* is missing
+npm run build
+```
+
+After deploying, sanity-check that the bundle really contains the config:
+
+```
+find dist/assets -name '*.js' | xargs grep -l "omnitoolify" >/dev/null && echo "Firebase config baked in"
+```
+
+The login browser console during the page load should show **no**
+`[firebase]` warning lines; if you see `[firebase] Firestore unavailable —
+continuing with local fallback`, the deployed build was made without the env
+variables.
+
 ## Tech Stack
 
 - **React 19** + **TypeScript 5.8**
@@ -35,6 +84,7 @@ A professional, globally accessible collection of **free online tools** — conv
 | `npm run build` | Production build to `dist/` |
 | `npm run preview` | Preview the production build |
 | `npm run lint` | Type-check with `tsc --noEmit` |
+| `npm run deploy:check` | Verify Firebase env vars exist before building for Cloudflare |
 
 ## Project Structure
 
