@@ -3,6 +3,7 @@ import { ArrowUpRight, Bookmark } from 'lucide-react';
 import { Tool } from '../types';
 import { useToolStore } from '../context/ToolContext';
 import { getCategory } from '../data/tools';
+import { resolveToolAction } from '../lib/toolRouting';
 
 interface ToolCardProps {
   tool: Tool;
@@ -20,6 +21,19 @@ export default function ToolCard({ tool }: ToolCardProps) {
 
   const handleOpenTool = (e: MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation(); // never trigger the card's details navigation
+    const action = resolveToolAction(tool);
+    if (action.kind === 'external') {
+      // Explicit user click on Open Tool: navigate to the exact configured
+      // external URL immediately (delay applies to auto-open countdowns only).
+      window.location.href = action.url;
+      return;
+    }
+    if (action.kind === 'internal') {
+      navigate('run', { tool });
+      return;
+    }
+    // No registered implementation → show the unavailable/draft state instead
+    // of inventing a fake interface.
     navigate('run', { tool });
   };
 

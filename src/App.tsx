@@ -15,18 +15,21 @@ import AboutPage from './components/AboutPage';
 import PrivacyPage from './components/PrivacyPage';
 import NotFoundPage from './components/NotFoundPage';
 import HomepageSeoContent from './components/HomepageSeoContent';
+import FaqSection from './components/FaqSection';
 import AdminApp from './components/admin/AdminApp';
 import AdminLogin from './components/admin/AdminLogin';
-import { setSessionToken, setSessionExpiredHandler, checkSession, getSessionToken } from './lib/adminApi';
+import { useFirebaseAuth } from './lib/firebaseAuth';
 import {
   applyPageMeta, canonicalPath, toolTitle, toolDescription,
   breadcrumbJsonLd, webSiteJsonLd, organizationJsonLd, softwareApplicationJsonLd,
   collectionPageJsonLd, webPageJsonLd,
 } from './lib/seo';
 import { getCategory } from './data/tools';
+import { findCategory } from './lib/cmsCatalog';
+import type { ToolCategory } from './types';
 
-function buildPageMeta(view: string, tool: ReturnType<typeof useToolStore>['selectedTool'], categoryId: string) {
-  const category = categoryId !== 'all' ? getCategory(categoryId) : undefined;
+function buildPageMeta(view: string, tool: ReturnType<typeof useToolStore>['selectedTool'], categoryId: string, categories: ToolCategory[]) {
+  const category = categoryId !== 'all' ? findCategory(categories, categoryId) : undefined;
   const path = canonicalPath(view, tool, categoryId);
 
   switch (view) {
@@ -47,6 +50,15 @@ function buildPageMeta(view: string, tool: ReturnType<typeof useToolStore>['sele
       };
 
     case 'category': {
+      // `/categories/all` is the All-Tools view — never a missing category.
+      if (categoryId === 'all') {
+        return {
+          title: 'All Tools — Browse Every Online Tool | OmniToolify',
+          description: 'Browse the full OmniToolify directory: text utilities, converters, generators, calculators, developer helpers, and file tools — all in one place.',
+          canonicalPath: path,
+          jsonLd: [webSiteJsonLd()],
+        };
+      }
       if (!category) {
         return { title: 'Category Not Found | OmniToolify', description: 'This category does not exist.', canonicalPath: path, noindex: true, jsonLd: [] };
       }
@@ -151,38 +163,16 @@ function buildPageMeta(view: string, tool: ReturnType<typeof useToolStore>['sele
 }
 
 function MainAppContent() {
-  const { view, selectedTool, selectedCategory } = useToolStore();
-  const [adminAuthed, setAdminAuthed] = useState(false);
-  const [authChecked, setAuthChecked] = useState(false);
+  const { view, selectedTool, selectedCategory, categories: catalogCategories } = useToolStore();
+  const { status: authStatus, signOut } = useFirebaseAuth();
   const [adminNotice, setAdminNotice] = useState<string | null>(null);
 
   useEffect(() => {
-    applyPageMeta(buildPageMeta(view, selectedTool, selectedCategory));
-  }, [view, selectedTool, selectedCategory]);
-
-  useEffect(() => {
-    // Any 401 from the API caused by server-side session expiry re-renders the login.
-    setSessionExpiredHandler(() => {
-      setAdminAuthed(false);
-      setAuthChecked(true);
-      setAdminNotice('Your session expired due to inactivity. Please log in again.');
-    });
-    return () => setSessionExpiredHandler(null);
-  }, []);
-
-  useEffect(() => {
-    if (view === 'admin' && !adminAuthed) {
-      const hadToken = !!getSessionToken();
-      checkSession().then(ok => {
-        setAdminAuthed(ok);
-        setAuthChecked(true);
-        if (!ok && hadToken) setAdminNotice('Your session expired due to inactivity. Please log in again.');
-      });
-    }
-  }, [view, adminAuthed]);
+    applyPageMeta(buildPageMeta(view, selectedTool, selectedCategory, catalogCategories));
+  }, [view, selectedTool, selectedCategory, catalogCategories]);
 
   const invalidTool = (view === 'tool' || view === 'run') && !selectedTool;
-  const invalidCategory = view === 'category' && selectedCategory !== 'all' && !getCategory(selectedCategory);
+  const invalidCategory = view === 'category' && selectedCategory !== 'all' && !findCategory(catalogCategories, selectedCategory);
 
   // The Admin Panel is fully independent of the public layout: no public
   // header/footer/build prompt are rendered on any admin screen.
@@ -190,10 +180,10 @@ function MainAppContent() {
     return (
       <div className="bg-app min-h-screen">
         <Toaster position="top-center" />
-        {!authChecked ? null : adminAuthed ? (
-          <AdminApp onLogout={() => { setSessionToken(null); setAdminAuthed(false); setAuthChecked(false); setAdminNotice(null); }} />
+        {authStatus === 'loading' ? null : authStatus === 'authenticated' ? (
+          <AdminApp onLogout={async () => { await signOut(); setAdminNotice(null); }} />
         ) : (
-          <AdminLogin notice={adminNotice} onAuthed={() => { setAdminAuthed(true); setAdminNotice(null); }} />
+          <AdminLogin notice={adminNotice} />
         )}
       </div>
     );
@@ -216,6 +206,7 @@ function MainAppContent() {
             <WhyToolNest />
             <Categories />
             <HomepageSeoContent />
+            <FaqSection />
           </>
         ) : view === 'tools' ? (
           <ToolsBrowser mode="all" />

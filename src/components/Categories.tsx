@@ -1,9 +1,9 @@
 import { ArrowRight } from 'lucide-react';
 import { useToolStore } from '../context/ToolContext';
-import { tools as staticTools } from '../data/tools';
+import { CategoryCardsSkeleton, CmsErrorNote } from './skeletons';
 
 export default function Categories() {
-  const { navigate, categories: catalogCategories } = useToolStore();
+  const { navigate, cmsState, categories: catalogCategories, tools: catalogTools } = useToolStore();
 
   return (
     <section id="categories-section" className="categories-section max-w-7xl mx-auto px-4 md:px-8 mt-8 sm:mt-10 scroll-mt-24">
@@ -12,13 +12,26 @@ export default function Categories() {
         <p className="text-xs sm:text-sm text-secondary font-normal mt-1.5">Find the right tool by what you are working on</p>
       </div>
 
+      {cmsState === 'loading' ? (
+        <CategoryCardsSkeleton count={6} />
+      ) : cmsState === 'error' ? (
+        <CmsErrorNote
+          message="We couldn't reach the content service, so categories can't be shown right now."
+          onRetry={() => window.location.reload()}
+        />
+      ) : catalogCategories.length === 0 ? (
+        <div className="bg-card border border-dashed border-gray-300 dark:border-neutral-800 rounded-[24px] py-12 text-center">
+          <p className="text-sm font-bold text-neutral-900 dark:text-white">No categories enabled yet</p>
+          <p className="text-xs text-secondary font-normal mt-1">Enabled categories from the CMS will appear here.</p>
+        </div>
+      ) : (
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-5">
         {catalogCategories.map(cat => {
-          const count = staticTools.filter(t => t.category === cat.id).length;
+          const count = catalogTools.filter(t => t.category === cat.id && t.isNew !== undefined ? t.category === cat.id : t.category === cat.id).length;
           return (
             <button
               key={cat.id}
-              onClick={() => navigate('category', cat.id)}
+              onClick={() => navigate('category', { category: cat.id })}
               className="category-card group relative overflow-hidden bg-card border-2 border-neutral-200/80 dark:border-white/10 rounded-2xl sm:rounded-3xl p-4 sm:p-6 flex items-center justify-between gap-4 text-left transition-all duration-300 hover:-translate-y-1 hover:border-blue-400/70 dark:hover:border-blue-500/50 hover:shadow-xl hover:shadow-blue-500/[0.06] dark:hover:shadow-blue-500/10 tap-feedback focus-visible:outline-2 focus-accent w-full min-w-0"
               aria-label={`Browse ${cat.name} tools`}
             >
@@ -49,6 +62,7 @@ export default function Categories() {
           );
         })}
       </div>
+      )}
     </section>
   );
 }

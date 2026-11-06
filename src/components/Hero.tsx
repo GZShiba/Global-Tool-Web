@@ -1,74 +1,74 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { ChevronLeft, ChevronRight, ArrowRight, Play } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
+import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { useToolStore } from '../context/ToolContext';
-import { tools } from '../data/tools';
-import ToolVisual from './ToolVisual';
-import { getPublicHeroSlides, HeroSlide } from '../lib/adminApi';
-import { getActiveHeroSlidesCached } from '../lib/firestoreCms';
-
-const SLIDE_IDS = ['json-formatter', 'password-generator', 'image-resizer', 'word-counter', 'regex-tester'];
+import { HeroSkeleton } from './skeletons';
+import HeroSlideStage from './hero/HeroSlideStage';
+import { HeroSlide } from '../lib/adminApi';
+import { getActiveHeroSlidesCached, clearCmsCache } from '../lib/firestoreCms';
+import { resolveToolAction } from '../lib/toolRouting';
+import { resolveVisualSettings, type HeroVisualSettings } from '../lib/heroVisual';
+import type { Tool } from '../types';
 
 const AUTO_ROTATE_MS = 6000;
 const DRAG_THRESHOLD = 60; // px — horizontal distance that triggers a slide change
 
 interface HeroSlideData {
-  tool: (typeof tools)[number];
+  tool: Tool;
   slide: HeroSlide;
+  /** Pre-resolved settings so the public carousel and admin preview share one exact rendering path. */
+  visual: HeroVisualSettings;
 }
 
 export default function Hero() {
-  const { navigate } = useToolStore();
+  const { navigate, tools: catalogTools, cmsState } = useToolStore();
   const [current, setCurrent] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [cmsSlides, setCmsSlides] = useState<HeroSlideData[] | null>(null);
-
+  const [cmsSlides, setCmsSlides] = useState<HeroSlideData[]>([]);
+  const [heroState, setHeroState] = useState<'loading' | 'ready' | 'empty' | 'error'>('loading');
   const hoverRef = useRef(false);
   const suppressClickRef = useRef(false);
   const dragRef = useRef({ active: false, startX: 0, dx: 0, moved: false });
 
-  // Load CMS-managed hero slides: Firestore first, then local API, then the default set.
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const fbSlides = await getActiveHeroSlidesCached();
-        if (cancelled) return;
-        if (fbSlides && fbSlides.length) {
-          const mapped = fbSlides
-            .map(slide => {
-              const tool = tools.find(t => t.slug === slide.toolSlug);
-              return tool ? { tool, slide } : null;
-            })
-            .filter((x): x is HeroSlideData => x !== null);
-          if (mapped.length) setCmsSlides(mapped);
-          return;
-        }
-        const localSlides = await getPublicHeroSlides();
-        if (cancelled || !localSlides) return;
-        const mapped = localSlides
-          .map(slide => {
-            const tool = tools.find(t => t.slug === slide.toolSlug);
-            return tool ? { tool, slide } : null;
-          })
-          .filter((x): x is HeroSlideData => x !== null);
-        if (mapped.length) setCmsSlides(mapped);
-      } catch {
-        /* offline → default slides */
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
+  const slides: HeroSlideData[] = cmsSlides;
 
-  const slides: HeroSlideData[] = cmsSlides && cmsSlides.length
-    ? cmsSlides
-    : SLIDE_IDS
-        .map(id => tools.find(t => t.id === id))
-        .filter((t): t is NonNullable<typeof t> => Boolean(t))
-        .map(tool => ({ tool, slide: null as unknown as HeroSlide }));
+  const load = useCallback(async (force = false) => {
+    if (force) clearCmsCache(); // a failed read is cached for the TTL — retry must bypass it
+    setHeroState('loading');
+    try {
+      // Firestore is the single source of truth: no local-API or demo fallback.
+      const fbSlides = await getActiveHeroSlidesCached();
+      if (fbSlides === null) {
+        setHeroState('error');
+        return;
+      }
+      // Resolve each slide's linked tool from the real catalogue
+      // (fed by cms_tools). Slides whose tool is not published are
+      // admin-managed only and stay hidden publicly — not a silent data failure.
+      const mapped = fbSlides
+        .map(slide => {
+          const tool = catalogTools.find(t => t.slug === slide.toolSlug);
+          if (!tool) return null;
+          // Shared resolution: identical settings object used by the studio.
+          return { tool, slide, visual: resolveVisualSettings(slide) };
+        })
+        .filter((x): x is HeroSlideData => x !== null);
+      setCmsSlides(mapped);
+      setHeroState(mapped.length > 0 ? 'ready' : 'empty');
+    } catch {
+      setHeroState('error');
+    }
+  }, [catalogTools]);
+
+  // Wait for the catalogue (cms_tools) to finish loading before mapping
+  // slides — otherwise every slide would look "unlinked" mid-load.
+  useEffect(() => {
+    if (cmsState === 'loading') return; // keep showing the skeleton
+    void load(false);
+  }, [cmsState, load]);
 
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -82,9 +82,10 @@ export default function Hero() {
     setCurrent(((index % slides.length) + slides.length) % slides.length);
   }, [slides.length]);
 
-  // Auto-rotation: skipped entirely for reduced-motion users; pauses on hover/focus.
+  // Auto-rotation: skipped entirely for reduced-motion users; pauses on hover/focus;
+  // off until real slides are loaded.
   useEffect(() => {
-    if (prefersReducedMotion || isPaused) return;
+    if (prefersReducedMotion || isPaused || slides.length === 0) return;
     timer.current = setInterval(() => setCurrent(prev => (prev + 1) % slides.length), AUTO_ROTATE_MS);
     return () => { if (timer.current) clearInterval(timer.current); };
   }, [prefersReducedMotion, isPaused, slides.length]);
@@ -117,12 +118,39 @@ export default function Hero() {
     setIsPaused(hoverRef.current); // resume rotation when not hovering
   };
 
+  if (heroState === 'loading') {
+    return <HeroSkeleton />;
+  }
+  if (heroState === 'error') {
+    return (
+      <section className="max-w-7xl mx-auto px-4 md:px-8 mt-5 sm:mt-6 lg:mt-8">
+        <div
+          className="h-[380px] sm:h-[420px] md:h-[460px] lg:h-[500px] rounded-[28px] sm:rounded-[32px] bg-card border border-subtle flex flex-col items-center justify-center text-center px-6"
+          role="alert"
+          aria-busy="false"
+        >
+          <div className="w-12 h-12 bg-inset rounded-full flex items-center justify-center mb-4 border border-subtle">
+            <RefreshCw size={20} className="text-faint" />
+          </div>
+          <p className="text-sm font-bold text-neutral-900 dark:text-white mb-1">The featured tools carousel could not be loaded</p>
+          <p className="text-xs text-secondary font-normal max-w-xs leading-relaxed">
+            We couldn't reach the content service. Check your connection and try again.
+          </p>
+          <button
+            onClick={() => void load(true)}
+            className="mt-5 inline-flex items-center gap-2 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 px-5 py-2.5 rounded-xl font-bold uppercase tracking-wider text-[10px] hover:opacity-90 transition-all active:scale-95"
+          >
+            <RefreshCw size={12} /> Retry
+          </button>
+        </div>
+      </section>
+    );
+  }
+  // Firestore responded but no active slides exist (fresh CMS) — the hero
+  // content region is intentionally hidden. Never demo/default slides.
   if (slides.length === 0) return null;
-  const { tool: slide, slide: cms } = slides[current];
-  const title = cms?.title || slide.name;
-  const eyebrow = cms?.eyebrow || `Featured · ${slide.category.replace('-', ' & ')}`;
-  const description = cms?.description || slide.description;
-  const primaryLabel = cms?.primaryLabel || 'Open Tool';
+  const entry = slides[current];
+  const { tool: slide, slide: cms, visual } = entry;
 
   return (
     <section
@@ -135,7 +163,7 @@ export default function Hero() {
       onBlur={() => setIsPaused(false)}
     >
       <div
-        className="relative h-[380px] sm:h-[420px] md:h-[460px] lg:h-[500px] rounded-[28px] sm:rounded-[32px] overflow-hidden bg-[#0b0b0d] shadow-2xl select-none cursor-grab active:cursor-grabbing"
+        className="relative h-[380px] sm:h-[420px] md:h-[460px] lg:h-[500px] rounded-[28px] sm:rounded-[32px] overflow-hidden shadow-2xl select-none cursor-grab active:cursor-grabbing"
         style={{ touchAction: 'pan-y' }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -149,16 +177,6 @@ export default function Hero() {
           }
         }}
       >
-        {/* Ambient blue / indigo depth accents */}
-        <div
-          className="absolute -top-28 -right-20 w-[420px] h-[420px] rounded-full blur-3xl opacity-60 pointer-events-none"
-          style={{ background: 'radial-gradient(circle, rgba(59,130,246,0.38) 0%, transparent 62%)' }}
-        />
-        <div
-          className="absolute top-1/3 -left-24 w-[380px] h-[380px] rounded-full blur-3xl opacity-40 pointer-events-none"
-          style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.30) 0%, transparent 62%)' }}
-        />
-
         <AnimatePresence mode="wait">
           <motion.div
             key={slide.id}
@@ -168,62 +186,29 @@ export default function Hero() {
             transition={{ duration: 0.55, ease: 'easeInOut' }}
             className="absolute inset-0"
           >
-            {/* Slide visual: consistent tool identity treatment, right-weighted */}
+            {/* Slide visual — the SAME shared renderer the admin live preview
+                uses (Studio <=> homepage can never drift apart). */}
             <motion.div
               initial={prefersReducedMotion ? false : { scale: 1.04 }}
               animate={{ scale: 1 }}
               transition={{ duration: 5.5, ease: 'linear' }}
               className="absolute inset-0"
             >
-              <ToolVisual icon={slide.icon} tint={slide.category} size="hero" align="right" className="absolute inset-0 !rounded-none border-0" />
+              <HeroSlideStage
+                tool={slide}
+                slide={cms}
+                visual={visual}
+                onOpenTool={() => {
+                  const action = resolveToolAction(slide);
+                  if (action.kind === 'external') {
+                    window.location.href = action.url;
+                    return;
+                  }
+                  navigate('run', { tool: slide });
+                }}
+                onDetails={() => navigate('tool', { tool: slide })}
+              />
             </motion.div>
-
-            {/* Depth gradients */}
-            <div className="absolute inset-0 bg-gradient-to-t from-[#0b0b0d] via-transparent to-transparent z-10" />
-            <div className="absolute inset-0 bg-gradient-to-r from-[#0b0b0d] via-[#0b0b0d]/70 to-transparent z-10" />
-
-            {/* Slide content */}
-            <div className="absolute inset-0 flex flex-col justify-center px-6 sm:px-12 md:px-16 lg:px-20 z-20">
-              <motion.div
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15, duration: 0.5 }}
-                className="max-w-lg md:max-w-xl"
-              >
-                <div className="flex items-center gap-2 mb-3 sm:mb-4">
-                  <span className="h-[2px] w-8 bg-blue-400/70"></span>
-                  <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.25em] text-white/70">
-                    {eyebrow}
-                  </span>
-                </div>
-
-                <h2 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold mb-3 sm:mb-4 tracking-tight leading-[1.08] text-white">
-                  {title}
-                </h2>
-
-                <p className="text-xs sm:text-sm md:text-base text-gray-300 font-normal leading-relaxed mb-5 sm:mb-7 line-clamp-3 max-w-md">
-                  {description}
-                </p>
-
-                <div className="flex flex-wrap gap-3">
-                  <button
-                    onClick={() => navigate('run', { tool: slide })}
-                    className="group bg-white hover:bg-neutral-100 text-black px-6 py-3 rounded-xl font-bold uppercase tracking-wider text-[10px] sm:text-xs flex items-center gap-2 transition-all active:scale-95"
-                  >
-                    <Play size={13} fill="currentColor" />
-                    <span>{primaryLabel}</span>
-                  </button>
-
-                  <button
-                    onClick={() => navigate('tool', { tool: slide })}
-                    className="group bg-white/10 hover:bg-white/20 border border-white/15 text-white px-6 py-3 rounded-xl font-bold uppercase tracking-wider text-[10px] sm:text-xs flex items-center gap-2 transition-all active:scale-95"
-                  >
-                    <span>About This Tool</span>
-                    <ArrowRight className="group-hover:translate-x-1 transition-transform" size={14} />
-                  </button>
-                </div>
-              </motion.div>
-            </div>
           </motion.div>
         </AnimatePresence>
 
@@ -253,7 +238,9 @@ export default function Hero() {
               onClick={() => goTo(idx)}
               aria-label={`Go to slide ${idx + 1}: ${s.tool.name}`}
               aria-current={current === idx}
-              className={`h-1.5 rounded-full transition-all duration-300 focus-visible:outline-2 focus-visible:outline-blue-400 ${current === idx ? 'bg-blue-500 w-8' : 'bg-white/25 hover:bg-white/50 w-3'}`}
+              className={`h-2.5 rounded-full transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-blue-400 ${
+                current === idx ? 'w-6 bg-white' : 'w-2.5 bg-white/40 hover:bg-white/70'
+              }`}
             />
           ))}
         </div>

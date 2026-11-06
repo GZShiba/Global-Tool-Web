@@ -1,13 +1,13 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { useToolStore } from '../context/ToolContext';
-import { tools } from '../data/tools';
 import ToolCard from './ToolCard';
+import { ToolCardGridSkeleton, CmsErrorNote } from './skeletons';
 
 export default function NewAndNoteworthy() {
-  const { navigate } = useToolStore();
+  const { navigate, cmsState, tools: catalogTools } = useToolStore();
 
-  // Newly added tools first, then the rest of the catalog
-  const showcase = [...tools]
+  // Newly added tools first, then the rest of the Firestore catalogue.
+  const showcase = [...catalogTools]
     .sort((a, b) => Number(b.isNew ?? false) - Number(a.isNew ?? false))
     .slice(0, 8);
 
@@ -26,23 +26,37 @@ export default function NewAndNoteworthy() {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5 justify-items-stretch">
-        <AnimatePresence mode="popLayout">
-          {showcase.map(tool => (
-            <motion.div
-              layout
-              key={tool.id}
-              initial={{ opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.96 }}
-              transition={{ duration: 0.25 }}
-              className="w-full"
-            >
-              <ToolCard tool={tool} />
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
+      {cmsState === 'loading' ? (
+        <ToolCardGridSkeleton count={8} />
+      ) : cmsState === 'error' ? (
+        <CmsErrorNote
+          message="We couldn't reach the content service, so tool listings can't be shown right now."
+          onRetry={() => window.location.reload()}
+        />
+      ) : showcase.length > 0 ? (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5 justify-items-stretch">
+          <AnimatePresence mode="popLayout">
+            {showcase.map(tool => (
+              <motion.div
+                layout
+                key={tool.id}
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.96 }}
+                transition={{ duration: 0.25 }}
+                className="w-full"
+              >
+                <ToolCard tool={tool} />
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+      ) : (
+        <div className="bg-card border border-dashed border-gray-300 dark:border-neutral-800 rounded-[24px] py-12 text-center">
+          <p className="text-sm font-bold text-neutral-900 dark:text-white">No tools published yet</p>
+          <p className="text-xs text-secondary font-normal mt-1">Published tools from the CMS will appear here.</p>
+        </div>
+      )}
     </section>
   );
 }

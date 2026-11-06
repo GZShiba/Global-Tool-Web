@@ -1,37 +1,37 @@
 /**
- * Public CMS catalog integration.
+ * Firestore-only CMS catalog.
  *
- * Loads published tools and enabled categories from the local admin API and
- * merges them over the static catalog. Rules:
- *  - A published CMS record overrides the static tool with the same slug.
- *  - CMS-only published tools are appended (fallback icon + honest detail page).
- *  - Drafts and archived tools are never surfaced.
- *  - Disabled CMS categories are hidden; enabled ones override/extend static.
- *  - If the API is unreachable, the static catalog is used unchanged.
+ * Firestore is the SINGLE source of truth for all CMS-managed content.
+ * There is no static catalogue and no fallback content: if a read fails the
+ * catalog is marked offline (callers show an error); if a read succeeds but
+ * the collection is empty, the catalog is empty (callers show empty states).
+ *
+ * Tool *implementations* come from the tool registry (functional components),
+ * never from CMS records. A published tool's implementation is attached only
+ * when a registered implementation id matches.
  */
-import { useEffect, useState } from 'react';
-import { createElement } from 'react';
+import { createElement, useEffect, useState } from 'react';
 import { Wrench } from 'lucide-react';
 import { Tool, ToolCategory } from '../types';
-import { tools as staticTools, categories as staticCategories } from '../data/tools';
-import { CmsTool, CmsCategory, getPublicCategories, getPublicTools } from './adminApi';
+import { CmsTool, CmsCategory } from './adminApi';
+import { resolveCategoryMatch } from './cmsPure';
 import { getEnabledCategoriesCached, getPublishedToolsCached } from './firestoreCms';
 
+export type CatalogState = 'loading' | 'ready' | 'error';
+
 export interface CmsCatalog {
+  state: CatalogState;
   tools: Tool[];
   categories: ToolCategory[];
-  offline: boolean;
-  loaded: boolean;
+  freshEmpty: boolean;
 }
 
-let cachePromise: Promise<CmsCatalog> | null = null;
-let cacheValue: CmsCatalog | null = null;
-
-function fallbackIcon(categoryId: string) {
+function fallbackIcon() {
   return createElement(Wrench, { size: 28, strokeWidth: 1.5 });
 }
 
-export function cmsToTool(cms: CmsTool, fallback?: Tool): Tool {
+/** Convert a Firestore tool record into a UI Tool (implementation attached when registered). */
+export function cmsToTool(cms: CmsTool): Tool {
   const howTo = cms.howTo.filter(h => h.title.trim()).map(h => h.title);
   const features = cms.features.filter(f => f.trim());
   const tags = cms.tags || [];
@@ -39,88 +39,66 @@ export function cmsToTool(cms: CmsTool, fallback?: Tool): Tool {
     id: cms.id || cms.slug,
     slug: cms.slug,
     name: cms.name,
-    tagline: cms.tagline || fallback?.tagline || '',
-    description: cms.description || fallback?.description || cms.tagline || '',
-    icon: fallback?.icon ?? fallbackIcon(cms.category),
-    category: cms.category || fallback?.category || 'text',
-    tags: tags.length ? tags : fallback?.tags || [],
-    features: features.length ? features : fallback?.features || [],
-    useCases: fallback?.useCases || [],
-    howTo: howTo.length ? howTo : fallback?.howTo || [],
+    tagline: cms.tagline || '',
+    description: cms.description || cms.tagline || '',
+    icon: fallbackIcon(),
+    category: cms.category || 'uncategorized',
+    tags: tags.length ? tags : [],
+    features: features.length ? features : [],
+    useCases: [],
+    howTo: howTo.length ? howTo : [],
     notes: cms.details.filter(d => d.label && d.value).map(d => ({ label: d.label, value: d.value })),
-    privacy: cms.privacy || fallback?.privacy || 'This tool runs in your browser.',
-    popular: !!cms.popular || !!fallback?.popular,
-    isNew: !!cms.isNew || !!fallback?.isNew,
+    privacy: cms.privacy || 'This tool runs in your browser.',
+    popular: !!cms.popular,
+    isNew: !!cms.isNew,
+    implementationId: cms.implementationId || undefined,
     externalUrl: cms.externalUrl || undefined,
     redirectEnabled: cms.redirectEnabled,
+    redirectDelaySeconds: cms.redirectDelaySeconds,
     cornerTimerEnabled: cms.cornerTimerEnabled,
   };
 }
 
-export function mergeTools(cmsTools: CmsTool[] | null): Tool[] {
-  const published = (cmsTools || []).filter(t => t.status === 'published');
-  const bySlug = new Map(published.map(t => [t.slug, t]));
-  const merged = new Map<string, Tool>();
-
-  for (const tool of staticTools) {
-    const cms = bySlug.get(tool.slug);
-    merged.set(tool.slug, cms ? cmsToTool(cms, tool) : tool);
-  }
-  for (const cms of published) {
-    if (!merged.has(cms.slug)) merged.set(cms.slug, cmsToTool(cms));
-  }
-  return [...merged.values()];
+export function cmsToCategory(cms: CmsCategory): ToolCategory {
+  return {
+    id: cms.id || cms.slug || cms.__docId || '',
+    name: cms.name,
+    description: cms.description || '',
+    icon: fallbackIcon(),
+  };
 }
 
-export function mergeCategories(cmsCategories: CmsCategory[] | null): ToolCategory[] {
-  const enabled = (cmsCategories || []).filter(c => c.enabled !== false);
-  const byId = new Map(enabled.map(c => [c.id, c]));
-  const merged = new Map<string, ToolCategory>();
-
-  for (const cat of staticCategories) {
-    const cms = byId.get(cat.id);
-    if (cms && cms.enabled === false) continue; // disabled → hidden
-    merged.set(cat.id, cms ? { ...cat, name: cms.name || cat.name, description: cms.description || cat.description } : cat);
-  }
-  for (const cms of enabled) {
-    if (!merged.has(cms.id)) {
-      merged.set(cms.id, {
-        id: cms.id,
-        name: cms.name,
-        description: cms.description,
-        icon: fallbackIcon(cms.id),
-      });
-    }
-  }
-  return [...merged.values()];
+/**
+ * Authoritative category lookup for the catalog: matches by `id` OR `slug`
+ * (case-insensitive). Every category-identity decision in the app must go
+ * through this resolver so a route built from either representation resolves
+ * to the same record, and a genuinely unknown id returns undefined (NotFound).
+ */
+export function findCategory(categories: ToolCategory[], id: string): ToolCategory | undefined {
+  return resolveCategoryMatch(categories, id);
 }
 
+/** Load the catalog strictly from Firestore. Returns a state object. */
 export async function loadCmsCatalog(force = false): Promise<CmsCatalog> {
   if (cacheValue && !force) return cacheValue;
   if (cachePromise && !force) return cachePromise;
 
   cachePromise = (async () => {
-    // 1. Prefer Firestore (published/enabled only) when configured.
     const [fbTools, fbCategories] = await Promise.all([getPublishedToolsCached(), getEnabledCategoriesCached()]);
-    if (fbTools && fbCategories) {
-      const catalog: CmsCatalog = {
-        tools: mergeTools(fbTools),
-        categories: mergeCategories(fbCategories),
-        offline: false,
-        loaded: true,
-      };
+    const firestoreReachable = fbTools !== null && fbCategories !== null;
+
+    if (!firestoreReachable) {
+      const catalog: CmsCatalog = { state: 'error', tools: [], categories: [], freshEmpty: false };
       cacheValue = catalog;
       return catalog;
     }
 
-    // 2. Fallback: local admin API (or static when the API is unreachable).
-    const [cmsTools, cmsCats] = await Promise.all([getPublicTools(), getPublicCategories()]);
-    const offline = cmsTools === null && cmsCats === null;
+    const freshEmpty = fbTools.length === 0 && fbCategories.length === 0;
     const catalog: CmsCatalog = {
-      tools: mergeTools(cmsTools),
-      categories: mergeCategories(cmsCats),
-      offline,
-      loaded: true,
+      state: 'ready',
+      tools: fbTools.map(cmsToTool),
+      categories: fbCategories.map(cmsToCategory),
+      freshEmpty,
     };
     cacheValue = catalog;
     return catalog;
@@ -133,13 +111,16 @@ export async function loadCmsCatalog(force = false): Promise<CmsCatalog> {
   }
 }
 
-/** React hook: loads the CMS catalog once and keeps the merged lists available. */
+let cacheValue: CmsCatalog | null = null;
+let cachePromise: Promise<CmsCatalog> | null = null;
+
+/** React hook: loads the Firestore CMS catalog once and exposes its state. */
 export function useCmsCatalog(): CmsCatalog {
   const [catalog, setCatalog] = useState<CmsCatalog>(() => cacheValue || {
-    tools: staticTools,
-    categories: staticCategories,
-    offline: false,
-    loaded: false,
+    state: 'loading',
+    tools: [],
+    categories: [],
+    freshEmpty: false,
   });
 
   useEffect(() => {
@@ -147,7 +128,7 @@ export function useCmsCatalog(): CmsCatalog {
     loadCmsCatalog().then(res => {
       if (alive) setCatalog(res);
     }).catch(() => {
-      if (alive) setCatalog({ tools: staticTools, categories: staticCategories, offline: true, loaded: true });
+      if (alive) setCatalog({ state: 'error', tools: [], categories: [], freshEmpty: false });
     });
     return () => { alive = false; };
   }, []);

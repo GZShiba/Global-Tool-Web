@@ -1,17 +1,16 @@
 import { MouseEvent } from 'react';
 import { Mail } from 'lucide-react';
 import { useToolStore } from '../context/ToolContext';
-import { categories, tools } from '../data/tools';
 
 export default function Footer() {
-  const { navigate } = useToolStore();
+  const { navigate, categories: catalogCategories, tools: catalogTools } = useToolStore();
 
   const handleNav = (e: MouseEvent, target: Parameters<typeof navigate>[0], category?: string) => {
     e.preventDefault();
     navigate(target, category ? { category } : undefined);
   };
 
-  const popularTools = tools.filter(t => t.popular).slice(0, 4);
+  const popularTools = catalogTools.filter(t => t.popular).slice(0, 4);
 
   return (
     <footer className="bg-neutral-950 text-white mt-12 border-t border-neutral-800/60">
@@ -49,7 +48,7 @@ export default function Footer() {
         <nav aria-label="Categories">
           <h3 className="text-[10px] font-bold mb-3 text-neutral-400 uppercase tracking-[0.18em]">Categories</h3>
           <ul className="flex flex-col gap-2">
-            {categories.slice(0, 4).map(cat => (
+            {catalogCategories.slice(0, 4).map(cat => (
               <li key={cat.id}>
                 <a
                   href={`#/category/${cat.id}`}

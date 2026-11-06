@@ -3,7 +3,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ChevronRight, X, Search, Grid, List, ArrowUpDown, Bookmark, ArrowUpRight } from 'lucide-react';
 import { useToolStore } from '../context/ToolContext';
 import { getCategory as getStaticCategory } from '../data/tools';
+import { findCategory } from '../lib/cmsCatalog';
 import ToolCard from './ToolCard';
+import { ToolsBrowserGridSkeleton, CmsErrorNote } from './skeletons';
 import { Tool } from '../types';
 
 interface ToolsBrowserProps {
@@ -19,16 +21,28 @@ const EMPTY: Record<string, { title: string; message: string }> = {
 export default function ToolsBrowser({ mode }: ToolsBrowserProps) {
   const {
     navigate, searchQuery, setSearchQuery, selectedCategory, bookmarks,
-    tools: catalogTools, categories: catalogCategories,
+    tools: catalogTools, categories: catalogCategories, cmsState,
   } = useToolStore();
   const [sortBy, setSortBy] = useState('Name A–Z');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
-  const getCategory = (id: string) => getStaticCategory(id) || catalogCategories.find(c => c.id === id);
+  const getCategory = (id: string) => findCategory(catalogCategories, id) || getStaticCategory(id);
 
   const activeCategory = mode === 'category' ? selectedCategory : 'all';
   const activeCategoryData = activeCategory !== 'all' ? getCategory(activeCategory) : undefined;
+
+  if (typeof window !== 'undefined' && window.location.search.includes('debug=cat')) {
+    console.info('[cat] render', {
+      mode,
+      selectedCategory,
+      activeCategory,
+      toolCount: catalogTools.length,
+      categoryToolCount: activeCategory !== 'all'
+        ? catalogTools.filter(t => t.category === activeCategory).length
+        : catalogTools.length,
+    });
+  }
 
   const matchesQuery = (tool: Tool, q: string) => {
     if (!q) return true;
@@ -68,7 +82,12 @@ export default function ToolsBrowser({ mode }: ToolsBrowserProps) {
             {catalogCategories.map(cat => (
               <button
                 key={cat.id}
-                onClick={() => { navigate('category', cat.id); setIsMobileFilterOpen(false); }}
+                onClick={() => {
+                  if (typeof window !== 'undefined' && window.location.search.includes('debug=cat')) {
+                    console.info('[cat] button clicked', { id: cat.id, name: cat.name });
+                  }
+                  navigate('category', { category: cat.id }); setIsMobileFilterOpen(false);
+                }}
                 className={`text-left px-4 py-2.5 rounded-xl text-xs font-bold transition-all tap-feedback ${mode === 'category' && activeCategory === cat.id ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900' : 'text-secondary hover:bg-inset hover:text-neutral-900 dark:hover:text-white'}`}
               >
                 {cat.name}
@@ -230,8 +249,17 @@ export default function ToolsBrowser({ mode }: ToolsBrowserProps) {
               </div>
             </div>
 
-            {/* Tools grid / list */}
-            {sortedTools.length > 0 ? (
+            {/* Tools grid / list — loading skeleton, then error or results.
+                Empty states only render after a successful CMS load, and a
+                Firestore error never masquerades as an empty collection. */}
+            {cmsState === 'loading' ? (
+              <ToolsBrowserGridSkeleton count={9} />
+            ) : cmsState === 'error' ? (
+              <CmsErrorNote
+                message="We couldn't reach the content service, so the tool catalogue can't be shown right now."
+                onRetry={() => window.location.reload()}
+              />
+            ) : sortedTools.length > 0 ? (
               <div className={viewMode === 'grid' ? 'grid grid-cols-2 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-5 justify-items-stretch' : 'flex flex-col gap-3'}>
                 <AnimatePresence mode="popLayout">
                   {sortedTools.map(tool => (

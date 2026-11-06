@@ -1,18 +1,37 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { FormEvent } from 'react';
-import { Plus, Pencil, Trash2, Copy, Search, Archive, Eye, Sparkles, ExternalLink } from 'lucide-react';
+import type { FormEvent, ReactNode } from 'react';
+import { Plus, Pencil, Trash2, Copy, Search, Archive, Eye, Sparkles, ExternalLink, Check, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
-import { CmsTool, createCmsTool, deleteCmsTool, listCmsTools, updateCmsTool } from '../../lib/adminApi';
+import { CmsTool, CmsCategory } from '../../lib/adminApi';
+import { fetchAllToolsFromFirestore, fetchAllCategoriesFromFirestore } from '../../lib/firestoreCms';
 import { createCmsToolCloud, deleteCmsToolCloud, updateCmsToolCloud } from '../../lib/adminWriteLayer';
 import { toolRegistry } from '../../tools/registry';
-import { categories, getCategory } from '../../data/tools';
+import { isValidExternalUrl } from '../../lib/toolRouting';
+import { getCategoryName } from '../../data/tools';
 import { recommendRelated } from '../../lib/relatedRecommendations';
 import { AdminBtn, AdminEmpty, AdminField, AdminModal, AdminSpinner, adminInputClass } from './adminUi';
 
 const STATUSES: CmsTool['status'][] = ['published', 'draft', 'archived'];
 
+/**
+ * Authoritative Firestore document id for a loaded tool. Prefers the doc id
+ * captured at read time (`__docId`); falls back to the legacy internal `id`
+ * only when it is non-empty and not the malformed "undefined" literal.
+ */
+function getDocKey(tool: CmsTool): string {
+  const key = tool.__docId ?? tool.id;
+  if (!key || key === 'undefined' || key === 'null') {
+    throw new Error('This tool record is missing its Firestore document id — reload the list and try again.');
+  }
+  return key;
+}
+
+// Guards against double-submit while a Firestore write is in flight.
+let writeInFlight = false;
+
 export default function ToolsManager({ mode }: { mode: 'list' | 'add' }) {
   const [tools, setTools] = useState<CmsTool[] | null>(null);
+  const [cmsCategories, setCmsCategories] = useState<CmsCategory[]>([]);
   const [query, setQuery] = useState('');
   const [catFilter, setCatFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -22,7 +41,18 @@ export default function ToolsManager({ mode }: { mode: 'list' | 'add' }) {
 
   const load = async () => {
     try {
-      setTools(await listCmsTools());
+      const [fb, cats] = await Promise.all([
+        fetchAllToolsFromFirestore(),
+        fetchAllCategoriesFromFirestore().catch(() => []),
+      ]);
+      if (fb) {
+        // Defensive: ignore malformed docs (e.g. legacy "undefined" doc) so a
+        // single bad record cannot crash the whole list.
+        setTools(fb.filter(t => t.slug && t.name));
+      } else {
+        setTools([]); toast.error('Firestore unavailable — tools cannot be loaded right now.');
+      }
+      setCmsCategories(cats ?? []);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to load tools');
       setTools([]);
@@ -42,7 +72,7 @@ export default function ToolsManager({ mode }: { mode: 'list' | 'add' }) {
 
   const saveTool = async (tool: CmsTool, isNew: boolean) => {
     try {
-      const res = isNew ? await createCmsToolCloud(tool) : await updateCmsToolCloud(tool.id, tool);
+      const res = isNew ? await createCmsToolCloud(tool) : await updateCmsToolCloud(getDocKey(tool), tool);
       if (!res.ok) throw new Error(res.error || 'Save failed');
       toast.success(isNew ? 'Tool created' : 'Tool saved');
       setCreating(false);
@@ -58,10 +88,10 @@ export default function ToolsManager({ mode }: { mode: 'list' | 'add' }) {
   if (!tools) return <AdminSpinner label="Loading tools…" />;
 
   if (creating) {
-    return <ToolForm tool={emptyTool()} isNew allTools={tools} onCancel={() => setCreating(false)} onSave={t => saveTool(t, true)} />;
+    return <ToolForm tool={emptyTool()} isNew allTools={tools} categories={cmsCategories} onCancel={() => setCreating(false)} onSave={t => saveTool(t, true)} />;
   }
   if (editing) {
-    return <ToolForm tool={editing} isNew={false} allTools={tools} onCancel={() => setEditing(null)} onSave={t => saveTool(t, false)} />;
+    return <ToolForm tool={editing} isNew={false} allTools={tools} categories={cmsCategories} onCancel={() => setEditing(null)} onSave={t => saveTool(t, false)} />;
   }
 
   return (
@@ -73,7 +103,7 @@ export default function ToolsManager({ mode }: { mode: 'list' | 'add' }) {
         </div>
         <select className={`${adminInputClass} sm:w-44 cursor-pointer`} value={catFilter} onChange={e => setCatFilter(e.target.value)}>
           <option value="all">All categories</option>
-          {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          {cmsCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
         <select className={`${adminInputClass} sm:w-40 cursor-pointer`} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
           <option value="all">All statuses</option>
@@ -90,17 +120,17 @@ export default function ToolsManager({ mode }: { mode: 'list' | 'add' }) {
             <span>Tool</span><span>Category</span><span>Status</span><span>Popular</span><span className="text-right">Actions</span>
           </div>
           {filtered.map(tool => (
-            <div key={tool.id} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_auto_auto] gap-2 md:gap-3 px-4 py-3 border-b border-subtle last:border-b-0 items-center">
+            <div key={getDocKey(tool)} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_auto_auto] gap-2 md:gap-3 px-4 py-3 border-b border-subtle last:border-b-0 items-center">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-8 h-8 rounded-lg bg-icon flex items-center justify-center text-secondary shrink-0">
-                  {tool.icon ? <img src={tool.icon} alt="" className="w-4 h-4 object-contain" /> : <span className="text-[10px] font-extrabold">{tool.name.slice(0, 1)}</span>}
+                  {tool.icon ? <img src={tool.icon} alt="" className="w-4 h-4 object-contain" /> : <span className="text-[10px] font-extrabold">{(tool.name || '?')[0]}</span>}
                 </div>
                 <div className="min-w-0">
                   <p className="font-bold text-[13px] text-neutral-900 dark:text-white truncate">{tool.name}</p>
                   <p className="text-[10px] text-faint font-normal truncate">/{tool.slug} · {tool.implementationId ? 'implementation linked' : 'no implementation'}</p>
                 </div>
               </div>
-              <p className="text-xs text-secondary font-medium">{getCategory(tool.category)?.name || tool.category || '—'}</p>
+              <p className="text-xs text-secondary font-medium">{getCategoryName(tool.category) || tool.category || '—'}</p>
               <div>
                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest ${
                   tool.status === 'published' ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400'
@@ -130,11 +160,14 @@ export default function ToolsManager({ mode }: { mode: 'list' | 'add' }) {
           <div className="flex justify-end gap-2.5">
             <AdminBtn variant="secondary" onClick={() => setConfirmDelete(null)}>Cancel</AdminBtn>
             <AdminBtn variant="danger" onClick={async () => {
+              if (writeInFlight) return;
+              writeInFlight = true;
               try {
-                const res = await deleteCmsToolCloud(confirmDelete.id);
+                const res = await deleteCmsToolCloud(getDocKey(confirmDelete));
                 if (!res.ok) throw new Error(res.error || 'Delete failed');
                 toast.success('Tool deleted'); setConfirmDelete(null); load();
               } catch (err) { toast.error(err instanceof Error ? err.message : 'Delete failed'); }
+              finally { writeInFlight = false; }
             }}>Permanently Delete</AdminBtn>
           </div>
         </AdminModal>
@@ -144,8 +177,18 @@ export default function ToolsManager({ mode }: { mode: 'list' | 'add' }) {
 }
 
 async function duplicateTool(tool: CmsTool, reload: () => Promise<void>) {
-  const copy: CmsTool = { ...tool, id: '', name: `${tool.name} (copy)`, slug: `${tool.slug}-copy-${Date.now().toString(36)}`, status: 'draft' };
+  if (writeInFlight) return;
+  writeInFlight = true;
+  // The duplicate is a brand-new record: strip the original doc identity
+  // (`__docId` and internal `id`), derive a unique slug, and force draft.
+  const copy = { ...tool } as CmsTool;
+  delete (copy as { __docId?: string }).__docId;
   delete (copy as { id?: string }).id;
+  copy.name = `${tool.name || 'Untitled'} (copy)`;
+  copy.slug = `${tool.slug || 'tool'}-copy-${Date.now().toString(36)}`;
+  copy.status = 'draft';
+  copy.createdAt = new Date().toISOString();
+  copy.updatedAt = undefined;
   try {
     const res = await createCmsToolCloud(copy);
     if (!res.ok) throw new Error(res.error || 'Duplicate failed');
@@ -153,17 +196,25 @@ async function duplicateTool(tool: CmsTool, reload: () => Promise<void>) {
     await reload();
   } catch (err) {
     toast.error(err instanceof Error ? err.message : 'Duplicate failed');
+  } finally {
+    writeInFlight = false;
   }
 }
 
 async function setStatus(tool: CmsTool, status: CmsTool['status'], reload: () => Promise<void>) {
+  if (writeInFlight) return;
+  writeInFlight = true;
   try {
-    const res = await updateCmsToolCloud(tool.id, { status });
+    // Status-only partial update targeting the exact Firestore document id —
+    // never a full-document overwrite, never a derived/undefined doc id.
+    const res = await updateCmsToolCloud(getDocKey(tool), { status });
     if (!res.ok) throw new Error(res.error || 'Status change failed');
     toast.success(`Tool ${status}`);
     await reload();
   } catch (err) {
     toast.error(err instanceof Error ? err.message : 'Status change failed');
+  } finally {
+    writeInFlight = false;
   }
 }
 
@@ -185,10 +236,11 @@ function emptyTool(): CmsTool {
 /* Tool form                                                           */
 /* ------------------------------------------------------------------ */
 
-function ToolForm({ tool, isNew, allTools, onCancel, onSave }: {
+function ToolForm({ tool, isNew, allTools, categories, onCancel, onSave }: {
   tool: CmsTool;
   isNew: boolean;
   allTools: CmsTool[];
+  categories: CmsCategory[];
   onCancel: () => void;
   onSave: (t: CmsTool) => Promise<boolean>;
 }) {
@@ -229,7 +281,8 @@ function ToolForm({ tool, isNew, allTools, onCancel, onSave }: {
     return ids;
   }, [manualIds, recommended]);
 
-  const isExternalUrlValid = form.redirectEnabled ? /^https?:\/\/[^\s]+$/i.test(form.externalUrl || '') : true;
+  const isExternalUrlValid = form.redirectEnabled ? isValidExternalUrl(form.externalUrl) : true;
+  const eligibleRelated = allTools.filter(t => t.slug && t.slug !== form.slug);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -263,28 +316,28 @@ function ToolForm({ tool, isNew, allTools, onCancel, onSave }: {
         <AdminField label="Full overview"><textarea className={`${adminInputClass} min-h-[80px] resize-y`} value={form.description} onChange={e => set('description', e.target.value)} /></AdminField>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <AdminField label="Category">
-            <select className={`${adminInputClass} cursor-pointer`} value={form.category} onChange={e => set('category', e.target.value)}>
+            <AdminSelect value={form.category} onChange={e => set('category', e.target.value)} ariaLabel="Category">
               <option value="">Select category…</option>
               {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            </AdminSelect>
           </AdminField>
-          <AdminField label="Registered implementation" hint="Maps to the working tool interface; essential for a live tool">
-            <select className={`${adminInputClass} cursor-pointer`} value={form.implementationId || ''} onChange={e => set('implementationId', e.target.value || undefined)}>
+          <AdminField label="Registered implementation" hint="Only genuine registered implementations appear here; none are registered yet — drafts stay without an internal interface.">
+            <AdminSelect value={form.implementationId || ''} onChange={e => set('implementationId', e.target.value || undefined)} ariaLabel="Registered implementation">
               <option value="">— No implementation (draft only) —</option>
               {Object.keys(toolRegistry).map(id => <option key={id} value={id}>{id}</option>)}
-            </select>
+            </AdminSelect>
           </AdminField>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <AdminField label="Runs on">
-            <select className={`${adminInputClass} cursor-pointer`} value={form.runsOn || 'Your Device'} onChange={e => set('runsOn', e.target.value)}>
+            <AdminSelect value={form.runsOn || 'Your Device'} onChange={e => set('runsOn', e.target.value)} ariaLabel="Runs on">
               <option>Your Device</option><option>Browser</option><option>Server</option>
-            </select>
+            </AdminSelect>
           </AdminField>
           <AdminField label="Account needed">
-            <select className={`${adminInputClass} cursor-pointer`} value={form.accountNeeded || 'None'} onChange={e => set('accountNeeded', e.target.value)}>
+            <AdminSelect value={form.accountNeeded || 'None'} onChange={e => set('accountNeeded', e.target.value)} ariaLabel="Account needed">
               <option>None</option><option>Optional</option><option>Required</option>
-            </select>
+            </AdminSelect>
           </AdminField>
           <AdminField label="Availability">
             <input className={adminInputClass} value={form.availability || ''} onChange={e => set('availability', e.target.value)} placeholder="Public" />
@@ -359,16 +412,12 @@ function ToolForm({ tool, isNew, allTools, onCancel, onSave }: {
       <section className="bg-card border border-subtle rounded-2xl p-5 space-y-4">
         <h3 className="font-bold text-sm text-neutral-900 dark:text-white">Related Tools</h3>
 
-        <label className="flex items-center gap-2.5 text-sm font-medium text-neutral-900 dark:text-white cursor-pointer">
-          <input
-            type="checkbox"
-            checked={!!form.autoRelated}
-            onChange={e => set('autoRelated', e.target.checked)}
-            className="w-4 h-4 accent-blue-600"
-          />
-          Automatic related tools <Sparkles size={14} className="text-accent" />
-          <span className="text-[11px] text-faint font-normal">suggest from published catalogue</span>
-        </label>
+        <AdminCheckbox
+          label={<span className="flex items-center gap-2">Automatic related tools <Sparkles size={14} className="text-accent" /></span>}
+          hint="suggest from published catalogue"
+          checked={!!form.autoRelated}
+          onChange={v => set('autoRelated', v)}
+        />
 
         {form.autoRelated && (
           <div className="bg-inset border border-subtle rounded-xl p-4 space-y-4">
@@ -426,30 +475,39 @@ function ToolForm({ tool, isNew, allTools, onCancel, onSave }: {
           </div>
         )}
 
-        <AdminField label="Manually selected related tools" hint="Always preserved — current tool excluded">
-          <select
-            className={`${adminInputClass} cursor-pointer`}
+        <AdminField label="Manually selected related tools" hint="Only real Firestore CMS tools — current tool excluded">
+          <AdminSelect
             value=""
             onChange={e => {
               const value = e.target.value;
               if (value && value !== form.slug && !manualIds.includes(value)) set('relatedToolIds', [...manualIds, value]);
             }}
+            ariaLabel="Add related tool"
           >
             <option value="">Add related tool…</option>
-            {Object.keys(toolRegistry).filter(id => id !== form.slug && !manualIds.includes(id)).map(id => (
-              <option key={id} value={id}>{id}</option>
+            {eligibleRelated.filter(t => !manualIds.includes(t.slug)).map(t => (
+              <option key={t.slug} value={t.slug}>{t.name} ({t.slug})</option>
             ))}
-          </select>
+          </AdminSelect>
         </AdminField>
+
+        {eligibleRelated.length === 0 && (
+          <p className="text-xs text-secondary font-normal bg-inset border border-subtle rounded-xl p-3">
+            No other tools exist in the CMS yet — related tools will become available once you save more tools.
+          </p>
+        )}
 
         {manualIds.length > 0 && (
           <div className="flex flex-wrap gap-2">
-            {manualIds.map(id => (
-              <span key={id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-inset border border-subtle text-xs font-medium text-neutral-900 dark:text-white">
-                {id}
-                <button type="button" onClick={() => set('relatedToolIds', manualIds.filter(r => r !== id))} className="text-faint hover:text-red-600">✕</button>
-              </span>
-            ))}
+            {manualIds.map(id => {
+              const t = allTools.find(x => x.slug === id);
+              return (
+                <span key={id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-inset border border-subtle text-xs font-medium text-neutral-900 dark:text-white">
+                  {t ? t.name : id}
+                  <button type="button" onClick={() => set('relatedToolIds', manualIds.filter(r => r !== id))} className="text-faint hover:text-red-600">✕</button>
+                </span>
+              );
+            })}
           </div>
         )}
       </section>
@@ -459,7 +517,7 @@ function ToolForm({ tool, isNew, allTools, onCancel, onSave }: {
         <h3 className="font-bold text-sm text-neutral-900 dark:text-white flex items-center gap-2">
           <ExternalLink size={15} className="text-accent" /> Tool Execution & Redirect
         </h3>
-        <AdminField label="External tool URL" hint="Optional — only http/https allowed; used only when redirect is enabled">
+        <AdminField label="External tool URL" hint={form.redirectEnabled ? 'Required when redirect is enabled — http/https only' : 'Optional — used only when redirect is enabled'}>
           <input
             className={`${adminInputClass} ${form.redirectEnabled && !isExternalUrlValid ? 'border-red-400 dark:border-red-500/60' : ''}`}
             value={form.externalUrl || ''}
@@ -468,37 +526,53 @@ function ToolForm({ tool, isNew, allTools, onCancel, onSave }: {
           />
         </AdminField>
         {form.redirectEnabled && !isExternalUrlValid && (
-          <p className="text-xs text-red-600 dark:text-red-400 font-medium">Enter a valid http(s) URL (javascript:/data: are rejected).</p>
+          <p className="text-xs text-red-600 dark:text-red-400 font-medium">Enter a valid http(s) URL — javascript:/data: are rejected.</p>
+        )}
+        {form.redirectEnabled && (
+          <AdminField label="Redirect delay (seconds)" hint="0 or empty = redirect immediately when Open Tool is clicked">
+            <input
+              type="number"
+              min={0}
+              max={120}
+              className={`${adminInputClass} w-32`}
+              placeholder="0"
+              value={form.redirectDelaySeconds ?? ''}
+              onChange={e => set('redirectDelaySeconds', e.target.value === '' ? undefined : Math.max(0, Math.floor(Number(e.target.value) || 0)))}
+            />
+          </AdminField>
         )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <label className="flex items-center gap-2.5 text-sm font-medium text-neutral-900 dark:text-white cursor-pointer">
-            <input type="checkbox" checked={!!form.redirectEnabled} onChange={e => set('redirectEnabled', e.target.checked)} className="w-4 h-4 accent-blue-600" />
-            Redirect Open Tool to the external URL
-          </label>
-          <label className="flex items-center gap-2.5 text-sm font-medium text-neutral-900 dark:text-white cursor-pointer">
-            <input type="checkbox" checked={form.cornerTimerEnabled !== false} onChange={e => set('cornerTimerEnabled', e.target.checked)} className="w-4 h-4 accent-blue-600" />
-            Show corner timer on the details page
-          </label>
+          <AdminCheckbox
+            label="Redirect Open Tool to the external URL"
+            hint="Open Tool goes to the exact configured URL"
+            checked={!!form.redirectEnabled}
+            onChange={v => set('redirectEnabled', v)}
+          />
+          <AdminCheckbox
+            label="Show corner timer on the details page"
+            hint="Auto-open countdown when a redirect delay is set"
+            checked={form.cornerTimerEnabled !== false}
+            onChange={v => set('cornerTimerEnabled', v)}
+          />
         </div>
         <p className="text-[11px] text-faint font-normal leading-relaxed">
-          With redirect enabled, the primary Open Tool button navigates to the external URL only when a visitor deliberately activates it —
-          opening the details page never redirects automatically. With redirect disabled (or no URL), the existing local implementation is used. The corner
-          timer is independent: hiding it never blocks the tool action.
+          With redirect enabled, Open Tool navigates to the exact configured external URL (the configured delay applies to the corner-timer auto-open only).
+          With redirect disabled, the registered internal implementation is used; without either, the tool shows an unavailable state instead of a fake interface.
         </p>
       </section>
 
       {/* Publication */}
       <section className="bg-card border border-subtle rounded-2xl p-5 space-y-4">
         <h3 className="font-bold text-sm text-neutral-900 dark:text-white">Publication</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <label className="flex items-center gap-2 text-xs font-medium text-neutral-900 dark:text-white"><input type="checkbox" checked={form.status === 'published'} onChange={e => set('status', e.target.checked ? 'published' : 'draft')} className="accent-blue-600" /> Published</label>
-          <label className="flex items-center gap-2 text-xs font-medium text-neutral-900 dark:text-white"><input type="checkbox" checked={!!form.popular} onChange={e => set('popular', e.target.checked)} className="accent-blue-600" /> Show in Popular</label>
-          <label className="flex items-center gap-2 text-xs font-medium text-neutral-900 dark:text-white"><input type="checkbox" checked={!!form.isNew} onChange={e => set('isNew', e.target.checked)} className="accent-blue-600" /> Mark as New</label>
-          <label className="flex items-center gap-2 text-xs font-medium text-neutral-900 dark:text-white"><input type="checkbox" checked={!!form.featured} onChange={e => set('featured', e.target.checked)} className="accent-blue-600" /> Featured</label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <AdminCheckbox compact label="Published" checked={form.status === 'published'} onChange={v => set('status', v ? 'published' : 'draft')} />
+          <AdminCheckbox compact label="Show in Popular" checked={!!form.popular} onChange={v => set('popular', v)} />
+          <AdminCheckbox compact label="Mark as New" checked={!!form.isNew} onChange={v => set('isNew', v)} />
+          <AdminCheckbox compact label="Featured" checked={!!form.featured} onChange={v => set('featured', v)} />
         </div>
-        {!form.implementationId && form.status === 'published' && (
+        {!form.implementationId && !form.redirectEnabled && form.status === 'published' && (
           <p className="text-xs text-amber-600 dark:text-amber-400 font-medium bg-amber-50 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-900/40 rounded-xl p-3">
-            Warning: this tool has no registered implementation linked, so its Open Tool action will have nothing to run.
+            Warning: this tool has no registered implementation and no external redirect — its Open Tool action will show an unavailable state.
           </p>
         )}
       </section>
@@ -548,6 +622,75 @@ function ListEditor({ items, onChange, placeholder }: { items: string[]; onChang
         </div>
       ))}
       <AdminBtn variant="secondary" type="button" onClick={() => onChange([...items, ''])}><Plus size={13} /> Add Item</AdminBtn>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Upgraded checkbox / select controls (visual only — behavior kept)   */
+/* ------------------------------------------------------------------ */
+
+function AdminCheckbox({ label, hint, checked, onChange, disabled, compact }: {
+  label: ReactNode;
+  hint?: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  disabled?: boolean;
+  compact?: boolean;
+}) {
+  return (
+    <label
+      className={`group flex items-start gap-3 rounded-xl border transition-colors select-none ${
+        compact ? 'p-2.5' : 'p-3'
+      } ${
+        disabled
+          ? 'opacity-50 cursor-not-allowed'
+          : `cursor-pointer bg-card border-subtle hover:bg-inset hover:border-neutral-400 dark:hover:border-neutral-600 ${checked ? 'border-neutral-900 dark:border-white' : ''}`
+      }`}
+    >
+      <input
+        type="checkbox"
+        className="sr-only"
+        checked={checked}
+        disabled={disabled}
+        onChange={e => onChange(e.target.checked)}
+      />
+      <span
+        aria-hidden="true"
+        className={`mt-0.5 w-5 h-5 shrink-0 rounded-md border-2 flex items-center justify-center transition-all ${
+          checked
+            ? 'bg-neutral-900 dark:bg-white border-neutral-900 dark:border-white text-white dark:text-neutral-900'
+            : 'bg-transparent border-gray-300 dark:border-neutral-600 group-hover:border-neutral-500 dark:group-hover:border-neutral-400'
+        }`}
+      >
+        {checked && <Check size={13} strokeWidth={3.5} />}
+      </span>
+      <span className="min-w-0">
+        <span className={`block font-semibold text-neutral-900 dark:text-white leading-snug ${compact ? 'text-xs' : 'text-[13px]'}`}>{label}</span>
+        {hint && <span className="block text-[11px] text-faint font-normal mt-0.5 leading-relaxed">{hint}</span>}
+      </span>
+    </label>
+  );
+}
+
+function AdminSelect({ value, onChange, children, ariaLabel, className }: {
+  value: string;
+  onChange: (e: FormEvent<HTMLSelectElement>) => void;
+  children: ReactNode;
+  ariaLabel?: string;
+  className?: string;
+}) {
+  return (
+    <div className={`relative ${className ?? ''}`}>
+      <select
+        value={value}
+        onChange={onChange}
+        aria-label={ariaLabel}
+        className={`${adminInputClass} appearance-none pr-10 cursor-pointer w-full`}
+      >
+        {children}
+      </select>
+      <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-faint pointer-events-none" />
     </div>
   );
 }

@@ -3,10 +3,19 @@
  * Session token is kept in memory only (never in localStorage/sessionStorage).
  */
 
+import type { HeroVisualSettings } from './heroVisual';
+
 export const ADMIN_API_URL = 'http://127.0.0.1:4735';
 
 export interface HeroSlide {
-  id?: string;
+  /**
+   * Authoritative Firestore document ID. The application reads this from the
+   * actual document reference (`docRef.id`) and uses it for ALL updates,
+   * enable/disable, duplicates, reorders, and deletes. Never derived from the
+   * tool slug or partial data.
+   */
+  __docId?: string;
+  id?: string; /** legacy internal id; kept in sync with the doc id at read time */
   toolSlug: string;
   title: string;
   eyebrow: string;
@@ -22,6 +31,15 @@ export interface HeroSlide {
   secondaryLabel?: string;
   active: boolean;
   order?: number;
+  createdAt?: string;
+  updatedAt?: string;
+  /**
+   * Structured visual customization (image adjustments, overlays, gradients,
+   * positioning, text styling). Null on legacy slides — they resolve to
+   * neutral defaults. See `src/lib/heroVisual.ts` for the shared semantics
+   * used by BOTH the admin live preview and the public homepage Hero.
+   */
+  visualSettings?: HeroVisualSettings | null;
 }
 
 export interface PopularConfig {
@@ -31,6 +49,12 @@ export interface PopularConfig {
 }
 
 export interface CmsTool {
+  /**
+   * Authoritative Firestore document ID. The application reads this from the
+   * actual document reference (`docRef.id`) and uses it for ALL updates,
+   * status changes, and deletes. Never derived from slug or partial data.
+   */
+  __docId?: string;
   id: string;
   name: string;
   slug: string;
@@ -56,6 +80,7 @@ export interface CmsTool {
   recommendedCategories?: string[];
   externalUrl?: string;
   redirectEnabled?: boolean;
+  redirectDelaySeconds?: number;
   cornerTimerEnabled?: boolean;
   status: 'draft' | 'published' | 'archived';
   popular?: boolean;
@@ -75,6 +100,8 @@ export interface CmsCategory {
   imageUrl?: string;
   order?: number;
   enabled: boolean;
+  /** Authoritative Firestore document id (attached on every read; used for writes). */
+  __docId?: string;
 }
 
 export interface MediaItem {
@@ -95,19 +122,6 @@ export class AdminApiError extends Error {
   }
 }
 
-let sessionToken: string | null = null;
-let sessionExpiredHandler: (() => void) | null = null;
-
-export function setSessionToken(token: string | null) {
-  sessionToken = token;
-}
-export function getSessionToken() {
-  return sessionToken;
-}
-export function setSessionExpiredHandler(handler: (() => void) | null) {
-  sessionExpiredHandler = handler;
-}
-
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12000);
@@ -115,7 +129,6 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   if (!(options.body instanceof FormData) && options.body !== undefined && !(options.body instanceof Blob)) {
     headers['Content-Type'] = 'application/json';
   }
-  if (sessionToken) headers.Authorization = `Bearer ${sessionToken}`;
   try {
     const res = await fetch(`${ADMIN_API_URL}${path}`, {
       ...options,
@@ -125,13 +138,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const ct = res.headers.get('content-type') || '';
     const data = ct.includes('application/json') ? await res.json().catch(() => null) : null;
     if (!res.ok) {
-      const message = (data && data.error) || `Admin API error (${res.status})`;
-      if (res.status === 401 && message.toLowerCase().includes('expired')) {
-        // Server invalidated the session (60-min inactivity) — notify the app.
-        sessionToken = null;
-        sessionExpiredHandler?.();
-      }
-      throw new AdminApiError(message, res.status);
+      throw new AdminApiError((data && data.error) || `Admin API error (${res.status})`, res.status);
     }
     return data as T;
   } catch (err) {
@@ -139,7 +146,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     throw new AdminApiError(
       err instanceof DOMException && err.name === 'AbortError'
         ? 'Admin API timed out'
-        : 'Cannot reach the admin API. Start it with: node scripts/admin-server.mjs serve',
+        : 'Cannot reach the local admin API. Start it with: node scripts/admin-server.mjs serve',
     );
   } finally {
     clearTimeout(timeout);
@@ -147,37 +154,13 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 
 /* ---- Auth ---- */
-export async function loginStep1(email: string, password: string): Promise<string> {
-  const data = await request<{ ok: boolean; stepToken: string }>('/api/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ email, password }),
-  });
-  return data.stepToken;
-}
-
-export async function loginStep2(stepToken: string, pin: string): Promise<string> {
-  const data = await request<{ ok: boolean; sessionToken: string }>('/api/auth/verify-pin', {
-    method: 'POST',
-    body: JSON.stringify({ stepToken, pin }),
-  });
-  return data.sessionToken;
-}
-
-export async function checkSession(): Promise<boolean> {
-  if (!sessionToken) return false;
-  try {
-    await request<{ ok: boolean }>('/api/auth/me');
-    return true;
-  } catch {
-    return false;
-  }
-}
+// Admin login now uses Firebase Authentication (see src/lib/firebaseAuth.ts).
+// The local-API login functions are no longer used by the Admin Panel.
 
 export async function adminLogout(): Promise<void> {
   try {
     await request<{ ok: boolean }>('/api/auth/logout', { method: 'POST' });
   } catch { /* ignore */ }
-  setSessionToken(null);
 }
 
 /* ---- Content ---- */
@@ -202,6 +185,7 @@ export const deleteCmsCategory = (id: string) => request<{ ok: boolean }>(`/api/
 export const reorderCmsCategories = (orderedIds: string[]) => request<{ ok: boolean }>('/api/categories/reorder', { method: 'POST', body: JSON.stringify({ orderedIds }) });
 
 export const listMedia = () => request<{ ok: boolean; media: MediaItem[] }>('/api/media').then(d => d.media);
+/** Create a local media metadata record (used for URL-based media without Storage). */
 export const createMediaRecord = (meta: { url: string; originalName: string; size: number }) =>
   request<{ ok: boolean; media: MediaItem }>('/api/media', {
     method: 'POST',
@@ -254,13 +238,6 @@ export const createAdministrator = (currentPassword: string, currentPin: string,
     method: 'POST',
     body: JSON.stringify({ currentPassword, currentPin, email, password }),
   });
-
-/** Obtain a short-lived HMAC ticket from the authenticated local admin API. */
-export const obtainFirebaseTicket = () =>
-  request<{ ok: boolean; ticket: string }>('/api/admin/firebase-ticket', { method: 'POST' }).then(d => d.ticket);
-
-export const firebaseFunctionsUrl = () =>
-  (import.meta.env.VITE_FIREBASE_FUNCTIONS_URL as string | undefined) || '';
 
 /* ---- Public reads (used by the public site to sync CMS content) ---- */
 export const getPublicHeroSlides = () => request<{ ok: boolean; slides: HeroSlide[] }>('/api/public/hero-slides').then(d => d.slides).catch(() => null);

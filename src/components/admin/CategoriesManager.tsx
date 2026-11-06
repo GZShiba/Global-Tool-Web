@@ -1,19 +1,26 @@
 import { useEffect, useState } from 'react';
 import { Plus, Pencil, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
-import { CmsCategory, createCmsCategory, deleteCmsCategory, listCmsCategories, reorderCmsCategories, updateCmsCategory } from '../../lib/adminApi';
+import { CmsCategory, CmsTool } from '../../lib/adminApi';
+import { fetchAllCategoriesFromFirestore, fetchAllToolsFromFirestore } from '../../lib/firestoreCms';
 import { createCmsCategoryCloud, deleteCmsCategoryCloud, reorderCmsCategoriesCloud, updateCmsCategoryCloud } from '../../lib/adminWriteLayer';
 import { AdminBtn, AdminEmpty, AdminField, AdminModal, AdminSpinner, adminInputClass } from './adminUi';
 import { tools } from '../../data/tools';
 
 export default function CategoriesManager() {
   const [cats, setCats] = useState<CmsCategory[] | null>(null);
+  const [cmsTools, setCmsTools] = useState<CmsTool[]>([]);
   const [modal, setModal] = useState<{ mode: 'create' | 'edit'; cat: CmsCategory } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<CmsCategory | null>(null);
 
   const load = async () => {
     try {
-      setCats(await listCmsCategories());
+      const [fb, toolsList] = await Promise.all([
+        fetchAllCategoriesFromFirestore(),
+        fetchAllToolsFromFirestore().catch(() => []),
+      ]);
+      if (fb) { setCats(fb); } else { setCats([]); toast.error('Firestore unavailable — categories cannot be loaded right now.'); }
+      setCmsTools(toolsList ?? []);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to load categories');
       setCats([]);
@@ -53,7 +60,7 @@ export default function CategoriesManager() {
       ) : (
         <div className="bg-card border border-subtle rounded-2xl overflow-hidden">
           {cats.map((cat, idx) => {
-            const count = tools.filter(t => t.category === cat.id).length;
+            const count = cmsTools.filter(t => t.category === cat.id).length;
             return (
               <div key={cat.id} className="flex items-center gap-3 p-4 border-b border-subtle last:border-b-0">
                 <div className="flex flex-col">

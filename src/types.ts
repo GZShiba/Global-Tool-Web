@@ -24,8 +24,10 @@ export interface Tool {
   popular?: boolean;
   isNew?: boolean;
   // CMS-managed execution settings (optional, backward-compatible defaults).
+  implementationId?: string;
   externalUrl?: string;
   redirectEnabled?: boolean;
+  redirectDelaySeconds?: number;
   cornerTimerEnabled?: boolean;
 }
 
@@ -37,12 +39,12 @@ export interface ToolContextType {
   selectedCategory: string; // 'all' or ToolCategory id
   searchQuery: string;
   setSearchQuery: (query: string) => void;
-  navigate: (view: View, opts?: { tool?: Tool | null; category?: string }) => void;
+  navigate: (view: View, opts?: { tool?: Tool | null; category?: string } | string) => void;
   bookmarks: string[];
   toggleBookmark: (id: string) => void;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
   tools: Tool[];
   categories: ToolCategory[];
-  cmsOffline: boolean;
+  cmsState: 'loading' | 'ready' | 'error';
 }

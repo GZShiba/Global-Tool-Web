@@ -1,7 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { toast } from 'sonner';
 import { Tool, View, ToolContextType } from '../types';
-import { categories as staticCategories, tools as staticTools, getToolBySlug } from '../data/tools';
 import { useCmsCatalog } from '../lib/cmsCatalog';
 
 const ToolContext = createContext<ToolContextType | null>(null);
@@ -106,7 +105,7 @@ function resolveRoute(): Route {
     const route = parseLegacyHash(hash);
     // Normalize a legacy hash URL into its equivalent clean URL once.
     const clean = buildCleanPath(route.view, {
-      tool: route.toolSlug ? getToolBySlug(route.toolSlug) || undefined : undefined,
+      tool: route.toolSlug ? { slug: route.toolSlug } as Tool : undefined,
       category: route.categoryId || undefined,
     });
     if (clean !== pathname) {
@@ -134,10 +133,20 @@ export const ToolProvider = ({ children }: ToolProviderProps) => {
     typeof window !== 'undefined' ? resolveRoute() : HOME_ROUTE
   );
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>(() => {
+    // Keep the initial selection in sync with the route: a direct category URL
+    // (e.g. /categories/text) or refresh must resolve to that category, not to
+    // the default "all". Previously this always started at 'all', so a
+    // refreshed category page silently rendered the full All-Tools list.
+    if (typeof window !== 'undefined') {
+      const r = resolveRoute();
+      return r.categoryId || 'all';
+    }
+    return 'all';
+  });
   const [activeSlug, setActiveSlug] = useState<string | null>(route.toolSlug);
   const catalog = useCmsCatalog();
-  const { tools: catalogTools, categories: catalogCategories, offline: cmsOffline } = catalog;
+  const { tools: catalogTools, categories: catalogCategories } = catalog;
   const [bookmarks, setBookmarks] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -160,6 +169,9 @@ export const ToolProvider = ({ children }: ToolProviderProps) => {
     : null;
 
   const applyRoute = useCallback((next: Route) => {
+    if (typeof window !== 'undefined' && window.location.search.includes('debug=cat')) {
+      console.info('[cat] applyRoute', { categoryId: next.categoryId, nextSelected: next.categoryId || 'all' });
+    }
     setRoute(next);
     setActiveSlug(next.toolSlug);
     if (next.categoryId) setSelectedCategory(next.categoryId);
@@ -177,8 +189,15 @@ export const ToolProvider = ({ children }: ToolProviderProps) => {
     };
   }, [applyRoute]);
 
-  const navigate = useCallback((view: View, opts?: { tool?: Tool | null; category?: string }) => {
-    const path = buildCleanPath(view, opts);
+  const navigate = useCallback((view: View, opts?: { tool?: Tool | null; category?: string } | string) => {
+    // Contract: callers should pass `{ category: <id> }`. A raw string (the
+    // legacy hand-off) is normalized to `{ category: <string> }` so the
+    // category id always reaches the route builder unchanged — never `all`.
+    const resolvedOpts = typeof opts === 'string' ? { category: opts } : opts;
+    const path = buildCleanPath(view, resolvedOpts);
+    if (typeof window !== 'undefined' && window.location.search.includes('debug=cat')) {
+      console.info('[cat] navigate', { view, category: resolvedOpts?.category, path });
+    }
     if (window.location.pathname === path) {
       // Same route: reset state (e.g. clicking the logo while at home)
       const next = resolveRoute();
@@ -234,10 +253,8 @@ export const ToolProvider = ({ children }: ToolProviderProps) => {
     toggleTheme,
     tools: catalogTools,
     categories: catalogCategories,
-    cmsOffline: cmsOffline,
+    cmsState: catalog.state,
   };
 
   return <ToolContext.Provider value={value}>{children}</ToolContext.Provider>;
 };
-
-export { staticCategories as toolCategories };

@@ -1,72 +1,37 @@
-import { useRef, useState } from 'react';
-import type { FormEvent, KeyboardEvent } from 'react';
-import { ShieldCheck, Mail, Lock, Eye, EyeOff, KeyRound, Loader2, AlertTriangle, Info } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import type { FormEvent } from 'react';
+import { ShieldCheck, Mail, Lock, Eye, EyeOff, Loader2, AlertTriangle, Info } from 'lucide-react';
 import { toast } from 'sonner';
-import { loginStep1, loginStep2, setSessionToken } from '../../lib/adminApi';
+import { useFirebaseAuth } from '../../lib/firebaseAuth';
 import { useAdminTheme } from './adminTheme';
 
-export default function AdminLogin({ onAuthed, notice }: { onAuthed: () => void; notice?: string | null }) {
+export default function AdminLogin({ notice }: { notice?: string | null }) {
+  const { status, error, setError, signIn } = useFirebaseAuth();
   const { adminTheme } = useAdminTheme();
-  const [step, setStep] = useState<'credentials' | 'pin'>('credentials');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [pin, setPin] = useState(['', '', '', '', '', '']);
-  const [stepToken, setStepToken] = useState('');
-  const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const pinRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  const submitCredentials = async (e: FormEvent) => {
+  useEffect(() => {
+    if (status === 'authenticated') toast.success('Welcome back, admin');
+  }, [status]);
+
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
-    setError(null);
-    try {
-      const token = await loginStep1(email.trim(), password);
-      setStepToken(token);
-      setStep('pin');
-      setTimeout(() => pinRefs.current[0]?.focus(), 50);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Sign in failed');
-    } finally {
-      setBusy(false);
-    }
+    const ok = await signIn(email, password);
+    setBusy(false);
+    if (!ok) setError(error || 'Sign-in failed');
   };
 
-  const handlePinChange = (idx: number, value: string) => {
-    const digits = value.replace(/\D/g, '').slice(0, 1);
-    const next = [...pin];
-    next[idx] = digits;
-    setPin(next);
-    if (digits && idx < 5) pinRefs.current[idx + 1]?.focus();
-  };
-
-  const handlePinKeyDown = (idx: number, e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Backspace' && !pin[idx] && idx > 0) pinRefs.current[idx - 1]?.focus();
-  };
-
-  const submitPin = async (e: FormEvent) => {
-    e.preventDefault();
-    const code = pin.join('');
-    if (!/^\d{6}$/.test(code)) {
-      setError('Enter all six digits of your PIN.');
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      const token = await loginStep2(stepToken, code);
-      setSessionToken(token);
-      toast.success('Welcome back, admin');
-      onAuthed();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'PIN verification failed');
-      setPin(['', '', '', '', '', '']);
-      pinRefs.current[0]?.focus();
-    } finally {
-      setBusy(false);
-    }
-  };
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-app">
+        <Loader2 size={22} className="text-faint animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-app">
@@ -88,102 +53,46 @@ export default function AdminLogin({ onAuthed, notice }: { onAuthed: () => void;
           </div>
         )}
 
-        {step === 'credentials' ? (
-          <form onSubmit={submitCredentials} className="space-y-4">
-            <div className="relative">
-              <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-faint" />
-              <input
-                type="email"
-                required
-                placeholder="Admin email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-inset border border-subtle text-neutral-900 dark:text-white focus:bg-card focus:border-neutral-400 dark:focus:border-neutral-600 rounded-xl outline-none text-sm font-medium"
-              />
-            </div>
-            <div className="relative">
-              <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-faint" />
-              <input
-                type={showPassword ? 'text' : 'password'}
-                required
-                placeholder="Password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className="w-full pl-10 pr-11 py-3 bg-inset border border-subtle text-neutral-900 dark:text-white focus:bg-card focus:border-neutral-400 dark:focus:border-neutral-600 rounded-xl outline-none text-sm font-medium"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(v => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-faint hover:text-secondary"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-              >
-                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
-
-            {error && (
-              <div className="flex items-start gap-2 bg-red-50 dark:bg-red-950/30 border border-red-200/60 dark:border-red-900/40 rounded-xl p-3 text-xs text-red-700 dark:text-red-300">
-                <AlertTriangle size={14} className="shrink-0 mt-0.5" /> {error}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={busy}
-              className="w-full inline-flex items-center justify-center gap-2 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 py-3 rounded-xl font-bold uppercase tracking-wider text-xs hover:opacity-90 transition-all active:scale-[0.98] disabled:opacity-40"
-            >
-              {busy ? <Loader2 size={14} className="animate-spin" /> : null} Continue
+        <form onSubmit={submit} className="space-y-4">
+          <div className="relative">
+            <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-faint" />
+            <input
+              type="email"
+              required
+              placeholder="Admin email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 bg-inset border border-subtle text-neutral-900 dark:text-white focus:bg-card focus:border-neutral-400 dark:focus:border-neutral-600 rounded-xl outline-none text-sm font-medium"
+            />
+          </div>
+          <div className="relative">
+            <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-faint" />
+            <input
+              type={showPassword ? 'text' : 'password'}
+              required
+              placeholder="Password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              className="w-full pl-10 pr-11 py-3 bg-inset border border-subtle text-neutral-900 dark:text-white focus:bg-card focus:border-neutral-400 dark:focus:border-neutral-600 rounded-xl outline-none text-sm font-medium"
+            />
+            <button type="button" onClick={() => setShowPassword(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-faint hover:text-secondary" aria-label={showPassword ? 'Hide password' : 'Show password'}>
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
-          </form>
-        ) : (
-          <form onSubmit={submitPin} className="space-y-4">
-            <div className="text-center">
-              <KeyRound size={22} className="mx-auto text-accent mb-2" />
-              <p className="text-sm font-bold text-neutral-900 dark:text-white">Enter your 6-digit PIN</p>
-              <p className="text-xs text-secondary font-normal mt-1">A security PIN is required to complete sign-in.</p>
+          </div>
+
+          {error && (
+            <div className="flex items-start gap-2 bg-red-50 dark:bg-red-950/30 border border-red-200/60 dark:border-red-900/40 rounded-xl p-3 text-xs text-red-700 dark:text-red-300">
+              <AlertTriangle size={14} className="shrink-0 mt-0.5" /> {error}
             </div>
+          )}
 
-            <div className="flex justify-center gap-2">
-              {pin.map((d, idx) => (
-                <input
-                  key={idx}
-                  ref={el => { pinRefs.current[idx] = el; }}
-                  inputMode="numeric"
-                  maxLength={1}
-                  value={d}
-                  onChange={e => handlePinChange(idx, e.target.value)}
-                  onKeyDown={e => handlePinKeyDown(idx, e)}
-                  aria-label={`PIN digit ${idx + 1}`}
-                  className="w-11 h-12 text-center bg-inset border border-subtle text-neutral-900 dark:text-white focus:bg-card focus:border-neutral-400 dark:focus:border-neutral-600 rounded-xl outline-none text-lg font-bold tabular-nums"
-                />
-              ))}
-            </div>
-
-            {error && (
-              <div className="flex items-start gap-2 bg-red-50 dark:bg-red-950/30 border border-red-200/60 dark:border-red-900/40 rounded-xl p-3 text-xs text-red-700 dark:text-red-300">
-                <AlertTriangle size={14} className="shrink-0 mt-0.5" /> {error}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={busy}
-              className="w-full inline-flex items-center justify-center gap-2 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 py-3 rounded-xl font-bold uppercase tracking-wider text-xs hover:opacity-90 transition-all active:scale-[0.98] disabled:opacity-40"
-            >
-              {busy ? <Loader2 size={14} className="animate-spin" /> : null} Verify PIN
-            </button>
-            <button
-              type="button"
-              onClick={() => { setStep('credentials'); setPin(['', '', '', '', '', '']); setError(null); }}
-              className="w-full text-center text-[10px] font-bold uppercase tracking-wider text-secondary hover:text-neutral-900 dark:hover:text-white"
-            >
-              ← Back to sign in
-            </button>
-          </form>
-        )}
+          <button type="submit" disabled={busy} className="w-full inline-flex items-center justify-center gap-2 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 py-3 rounded-xl font-bold uppercase tracking-wider text-xs hover:opacity-90 transition-all active:scale-[0.98] disabled:opacity-40">
+            {busy ? <Loader2 size={14} className="animate-spin" /> : null} Sign In
+          </button>
+        </form>
 
         <p className="mt-6 text-center text-[10px] text-faint font-normal leading-relaxed">
-          Protected area · Sign-in is verified locally by the admin service.
+          Protected area · Sign-in via Firebase Authentication (Email/Password).
         </p>
       </div>
     </div>

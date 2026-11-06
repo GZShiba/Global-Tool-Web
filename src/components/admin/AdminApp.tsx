@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
-import { LayoutDashboard, Image as ImageIcon, Star, Wrench, Plus, FolderTree, KeyRound, LogOut, PanelLeftClose, PanelLeft, Sun, Moon } from 'lucide-react';
-import { adminLogout } from '../../lib/adminApi';
+import { LayoutDashboard, Image as ImageIcon, Star, Wrench, Plus, FolderTree, KeyRound, LogOut, PanelLeftClose, PanelLeft, Sun, Moon, MessagesSquare } from 'lucide-react';
 import { useAdminTheme } from './adminTheme';
 import HeroSlidesManager from './HeroSlidesManager';
 import PopularToolsManager from './PopularToolsManager';
@@ -9,8 +8,10 @@ import ToolsManager from './ToolsManager';
 import CategoriesManager from './CategoriesManager';
 import MediaLibrary from './MediaLibrary';
 import ChangePin from './ChangePin';
+import ContactMessagesManager from './ContactMessagesManager';
+import ErrorBoundary from './ErrorBoundary';
 
-type AdminSection = 'home' | 'hero' | 'popular' | 'tools' | 'add' | 'categories' | 'media' | 'security';
+type AdminSection = 'home' | 'hero' | 'popular' | 'tools' | 'add' | 'categories' | 'media' | 'messages' | 'security';
 
 const NAV: { id: AdminSection; label: string; icon: ReactNode; group: string }[] = [
   { id: 'home', label: 'Content Home', icon: <LayoutDashboard size={16} />, group: 'Home Content' },
@@ -19,6 +20,7 @@ const NAV: { id: AdminSection; label: string; icon: ReactNode; group: string }[]
   { id: 'tools', label: 'All Tools', icon: <Wrench size={16} />, group: 'Tool Management' },
   { id: 'add', label: 'Add New Tool', icon: <Plus size={16} />, group: 'Tool Management' },
   { id: 'categories', label: 'Categories', icon: <FolderTree size={16} />, group: 'Categories' },
+  { id: 'messages', label: 'Contact Messages', icon: <MessagesSquare size={16} />, group: 'Messages' },
   { id: 'media', label: 'Media Library', icon: <ImageIcon size={16} />, group: 'Media Library' },
   { id: 'security', label: 'Admin Security', icon: <KeyRound size={16} />, group: 'Admin Security' },
 ];
@@ -29,8 +31,7 @@ export default function AdminApp({ onLogout }: { onLogout: () => void }) {
   const { adminTheme, toggleAdminTheme } = useAdminTheme();
 
   const handleLogout = async () => {
-    await adminLogout();
-    onLogout();
+    await onLogout(); // Firebase sign-out
   };
 
   const title = NAV.find(n => n.id === section)?.label || 'Admin';
@@ -56,7 +57,7 @@ export default function AdminApp({ onLogout }: { onLogout: () => void }) {
         </div>
 
         <nav className="flex-1 overflow-y-auto p-3 space-y-4">
-          {(['Home Content', 'Tool Management', 'Categories', 'Media Library', 'Admin Security'] as const).map(group => {
+          {(['Home Content', 'Tool Management', 'Categories', 'Messages', 'Media Library', 'Admin Security'] as const).map(group => {
             const items = NAV.filter(n => n.group === group);
             return (
               <div key={group}>
@@ -125,13 +126,14 @@ export default function AdminApp({ onLogout }: { onLogout: () => void }) {
 
         <main className="flex-1 p-5 overflow-y-auto">
           {section === 'home' && <AdminLanding go={setSection} />}
-          {section === 'hero' && <HeroSlidesManager />}
-          {section === 'popular' && <PopularToolsManager />}
-          {section === 'tools' && <ToolsManager mode="list" />}
-          {section === 'add' && <ToolsManager mode="add" />}
-          {section === 'categories' && <CategoriesManager />}
-          {section === 'media' && <MediaLibrary />}
-          {section === 'security' && <ChangePin />}
+          {section === 'hero' && <ErrorBoundary label="Hero Slides"><HeroSlidesManager /></ErrorBoundary>}
+          {section === 'popular' && <ErrorBoundary label="Popular Tools"><PopularToolsManager /></ErrorBoundary>}
+          {section === 'tools' && <ErrorBoundary label="All Tools"><ToolsManager mode="list" /></ErrorBoundary>}
+          {section === 'add' && <ErrorBoundary label="Add New Tool"><ToolsManager mode="add" /></ErrorBoundary>}
+          {section === 'categories' && <ErrorBoundary label="Categories"><CategoriesManager /></ErrorBoundary>}
+          {section === 'messages' && <ErrorBoundary label="Contact Messages"><ContactMessagesManager /></ErrorBoundary>}
+          {section === 'media' && <ErrorBoundary label="Media Library"><MediaLibrary /></ErrorBoundary>}
+          {section === 'security' && <ErrorBoundary label="Admin Security"><ChangePin /></ErrorBoundary>}
         </main>
       </div>
     </div>
@@ -144,9 +146,11 @@ function AdminLanding({ go }: { go: (s: AdminSection) => void }) {
     { id: 'popular', title: 'Popular Tools', desc: 'Choose which tools appear in Most Popular on the homepage.', icon: <Star size={18} /> },
     { id: 'tools', title: 'All Tools', desc: 'Create, edit, publish, archive, or delete tools.', icon: <Wrench size={18} /> },
     { id: 'categories', title: 'Categories', desc: 'Manage tool categories, slugs, and ordering.', icon: <FolderTree size={18} /> },
-    { id: 'media', title: 'Media Library', desc: 'Upload and manage images used across the site.', icon: <ImageIcon size={18} /> },
-    { id: 'security', title: 'Change PIN', desc: 'Update your six-digit admin security PIN.', icon: <KeyRound size={18} /> },
+    { id: 'messages', title: 'Contact Messages', desc: 'View and manage contact form submissions.', icon: <MessagesSquare size={18} /> },
+    { id: 'media', title: 'Media Library', desc: 'Manage image URLs used across the site.', icon: <ImageIcon size={18} /> },
+    { id: 'security', title: 'Admin Security', desc: 'PIN/password/email and account management.', icon: <KeyRound size={18} /> },
   ];
+
   return (
     <div className="max-w-5xl">
       <h2 className="text-2xl font-extrabold text-neutral-900 dark:text-white tracking-tight mb-1">Content Management</h2>

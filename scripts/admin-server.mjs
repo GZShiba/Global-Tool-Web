@@ -23,7 +23,6 @@ import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Readable } from 'node:stream';
-import { mintTicket } from './bridge-ticket.mjs';
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = process.env.ADMIN_DATA_ROOT ? path.resolve(process.env.ADMIN_DATA_ROOT) : path.resolve(SCRIPT_DIR, '..');
@@ -720,16 +719,9 @@ function createServer() {
       }
 
       if (url.pathname === '/api/admin/firebase-ticket' && req.method === 'POST') {
-        // Mint a short-lived HMAC ticket for the hosted CMS write function.
-        // Requires an existing authenticated admin session (enforced above).
-        let ticket;
-        try {
-          ticket = mintTicket(session.admin.id);
-        } catch (err) {
-          sendJson(res, 503, { ok: false, error: err.message });
-          return;
-        }
-        sendJson(res, 200, { ok: true, ticket });
+        // Removed: no HMAC bridge tickets in the Spark-plan architecture.
+        // Admin CMS writes are now direct Firestore writes via Firebase Auth.
+        sendJson(res, 410, { ok: false, error: 'Bridge tickets removed — CMS writes go directly to Firestore via Firebase Auth.' });
         return;
       }
 

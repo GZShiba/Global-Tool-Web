@@ -1,15 +1,15 @@
-import { ChevronRight, ArrowLeft, Info } from 'lucide-react';
+import { ChevronRight, ArrowLeft, Info, AlertCircle } from 'lucide-react';
 import { useToolStore } from '../context/ToolContext';
 import { getCategory } from '../data/tools';
-import { toolRegistry, ToolLoader } from '../tools/registry';
+import { resolveToolAction } from '../lib/toolRouting';
 
 export default function ToolRunPage() {
   const { selectedTool, navigate } = useToolStore();
 
   if (!selectedTool) return null;
   const tool = selectedTool;
-  const ToolComponent = toolRegistry[tool.id];
   const category = getCategory(tool.category);
+  const action = resolveToolAction(tool);
 
   return (
     <div className="min-h-screen pb-20">
@@ -51,14 +51,39 @@ export default function ToolRunPage() {
 
         {/* Working interface */}
         <div className="bg-card border border-subtle rounded-[24px] p-4 sm:p-6 md:p-8 shadow-sm">
-          {ToolComponent ? (
-            <ToolLoader>
-              <ToolComponent />
-            </ToolLoader>
-          ) : (
+          {action.kind === 'internal' ? null : (
             <div className="text-center py-12">
-              <p className="text-sm font-bold text-neutral-900 dark:text-white mb-1">This tool is being prepared</p>
-              <p className="text-xs text-faint font-normal">The interface is not available yet — check back soon.</p>
+              <div className="w-12 h-12 bg-inset rounded-full flex items-center justify-center mx-auto mb-4 border border-subtle">
+                <AlertCircle size={22} className="text-faint" />
+              </div>
+              {action.kind === 'external' ? (
+                <>
+                  <p className="text-sm font-bold text-neutral-900 dark:text-white mb-1">This tool opens an external site</p>
+                  <p className="text-xs text-faint font-normal">
+                    Open it from the tool details page to continue.
+                  </p>
+                </>
+              ) : action.reason === 'invalid-external-url' ? (
+                <>
+                  <p className="text-sm font-bold text-amber-700 dark:text-amber-400 mb-1">External redirect is misconfigured</p>
+                  <p className="text-xs text-faint font-normal">
+                    The URL is missing or invalid. Fix it in Admin → Add/Edit Tool.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-bold text-neutral-900 dark:text-white mb-1">This tool is not available yet</p>
+                  <p className="text-xs text-faint font-normal">
+                    No working implementation exists for this tool — check back soon.
+                  </p>
+                </>
+              )}
+              <button
+                onClick={() => navigate('tool', { tool })}
+                className="mt-6 px-5 py-2.5 rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-[10px] font-bold uppercase tracking-wider hover:opacity-90 transition-all active:scale-[0.98]"
+              >
+                Back to Details
+              </button>
             </div>
           )}
         </div>

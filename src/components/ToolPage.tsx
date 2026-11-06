@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useToolStore } from '../context/ToolContext';
 import { getCategory } from '../data/tools';
+import { resolveToolAction } from '../lib/toolRouting';
 import ToolCard from './ToolCard';
 import ToolVisual from './ToolVisual';
 import ToolRedirectCountdown from './ToolRedirectCountdown';
@@ -115,6 +116,7 @@ export default function ToolPage() {
     .filter(t => t.id !== tool.id && (t.tags.some(tag => tool.tags.includes(tag)) || t.category === tool.category))
     .slice(0, 4);
   const isBookmarked = bookmarks.includes(tool.id);
+  const action = resolveToolAction(tool);
 
   const toggleSection = (id: string) =>
     setExpanded(prev => (prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]));
@@ -136,7 +138,7 @@ export default function ToolPage() {
         <button onClick={() => navigate('tools')} className="hover:text-neutral-900 dark:hover:text-white transition-colors font-medium">Tools</button>
         <ChevronRight size={13} className="shrink-0 text-faint" />
         <button
-          onClick={() => navigate('category', tool.category)}
+          onClick={() => navigate('category', { category: tool.category })}
           className="hover:text-neutral-900 dark:hover:text-white cursor-pointer transition-colors font-medium"
         >
           {category?.name}
@@ -183,7 +185,7 @@ export default function ToolPage() {
                 <div className="min-w-0">
                   <h1 className="text-xl sm:text-2xl font-extrabold text-neutral-900 dark:text-white tracking-tight leading-tight">{tool.name}</h1>
                   <button
-                    onClick={() => navigate('category', tool.category)}
+                    onClick={() => navigate('category', { category: tool.category })}
                     className="mt-2.5 inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-secondary bg-inset border border-subtle px-2.5 py-1 rounded-lg hover:border-neutral-400 dark:hover:border-neutral-600 transition-all"
                   >
                     <LayoutGrid size={11} /> {category?.name}
@@ -205,11 +207,15 @@ export default function ToolPage() {
 
               <p className="text-[13px] text-secondary font-normal leading-relaxed mb-6 line-clamp-3">{tool.description}</p>
 
-              {/* Primary action — opens the working tool interface (or the configured external URL) */}
+              {/* Primary action — one authoritative routing decision */}
               <button
                 onClick={() => {
-                  if (tool.redirectEnabled && tool.externalUrl && /^https?:\/\/[^\s]+$/i.test(tool.externalUrl)) {
-                    window.location.href = tool.externalUrl;
+                  if (action.kind === 'external') {
+                    window.location.href = action.url;
+                    return;
+                  }
+                  if (action.kind === 'internal') {
+                    navigate('run', { tool });
                     return;
                   }
                   navigate('run', { tool });
@@ -218,6 +224,17 @@ export default function ToolPage() {
               >
                 <Play size={14} fill="currentColor" /> Open Tool
               </button>
+
+              {action.kind === 'unavailable' && action.reason === 'invalid-external-url' && (
+                <p className="mt-3 text-[11px] text-amber-700 dark:text-amber-400 font-medium bg-amber-50 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-900/40 rounded-xl p-3">
+                  External redirect is enabled but the URL is missing or invalid — fix it in Admin → Add/Edit Tool.
+                </p>
+              )}
+              {action.kind === 'unavailable' && action.reason === 'no-implementation' && (
+                <p className="mt-3 text-[11px] text-secondary font-normal bg-inset border border-subtle rounded-xl p-3">
+                  This tool has no working implementation yet — the interface is not available.
+                </p>
+              )}
 
               {/* At a glance */}
               <div className="mt-6 pt-5 border-t border-subtle space-y-3.5 text-xs font-medium">
@@ -293,9 +310,11 @@ export default function ToolPage() {
         </div>
       </div>
 
-      {/* Auto-redirect countdown — details routes only; keyed so switching tools resets it.
-          Hidden entirely when the CMS disables the corner timer for this tool. */}
-      {tool.cornerTimerEnabled !== false && (
+      {/* Auto-redirect countdown — only when an external redirect is configured
+          WITH a delay. Keyed so switching tools resets it; hidden entirely when
+          the CMS disables the corner timer for this tool. Never runs for
+          internal/unavailable actions. */}
+      {action.kind === 'external' && action.delaySeconds > 0 && tool.cornerTimerEnabled !== false && (
         <div key={tool.id}>
           <ToolRedirectCountdown tool={tool} />
         </div>

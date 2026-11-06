@@ -1,34 +1,83 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Public visitors may read ONLY published/enabled/active CMS records.
-    // Drafts, archived tools and disabled categories are never readable
-    // through the public queries.
     function isSignedIn() {
       return request.auth != null;
     }
-    // Administrators are identified by the `admin` custom claim set on their
-    // Firebase Auth token (must be assigned server-side with the Admin SDK —
-    // never accepted from the client).
+    function isVerified() {
+      return request.auth.token.email_verified == true;
+    }
     function isAdmin() {
-      return isSignedIn() && request.auth.token.admin == true;
+      return isSignedIn() && isVerified() &&
+        (request.auth.token.email == 'gzshiba99329@gmail.com');
     }
 
+    // Admin can read ALL CMS records (drafts, archived, disabled included).
+    // Public can read ONLY published/enabled/active records.
     match /cms_tools/{docId} {
-      allow read: if resource.data.status == 'published';
+      allow read: if isAdmin() || resource.data.status == 'published';
       allow write: if isAdmin();
     }
     match /cms_categories/{docId} {
-      allow read: if resource.data.enabled == true;
+      allow read: if isAdmin() || resource.data.enabled == true;
       allow write: if isAdmin();
     }
     match /cms_heroSlides/{docId} {
-      allow read: if resource.data.active == true;
+      allow read: if isAdmin() || resource.data.active == true;
       allow write: if isAdmin();
     }
     match /cms_popular/{docId} {
+      allow read: if true;      // public config
+      allow write: if isAdmin();
+    }
+    match /cms_media/{docId} {
+      allow read: if true;      // public image references
+      allow write: if isAdmin();
+    }
+
+    // Contact messages: anyone may create a validated message — anonymous
+    // visitors, authenticated non-admins, and the signed-in admin. ONLY the
+    // verified admin may read, update (status), or delete them. Public reads,
+    // updates, and deletes are denied outright, and create is restricted to the
+    // exact expected fields with validated types/lengths (no unexpected fields,
+    // no spoofed status, server timestamps only). Authentication state must NOT
+    // gate create: an admin session is still `request.auth != null`.
+    match /contact_messages/{msgId} {
+      allow create: if request.resource.data.keys().hasOnly(['name','email','subjectType','subject','message','status','createdAt','updatedAt'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 1
+        && request.resource.data.name.size() <= 120
+        && request.resource.data.email is string
+        && request.resource.data.email.size() <= 254
+        && request.resource.data.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$')
+        && request.resource.data.subjectType is string
+        && request.resource.data.subjectType.size() >= 1
+        && request.resource.data.subjectType.size() <= 40
+        && request.resource.data.subject is string
+        && request.resource.data.subject.size() >= 1
+        && request.resource.data.subject.size() <= 200
+        && request.resource.data.message is string
+        && request.resource.data.message.size() >= 10
+        && request.resource.data.message.size() <= 5000
+        && request.resource.data.status == 'new'
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp;
+      allow read: if isAdmin();
+      allow update: if isAdmin()
+        && (!request.resource.data.keys().hasAny(['status']) || request.resource.data.status in ['new','read','archived']);
+      allow delete: if isAdmin();
+    }
+
+    // Contact subject configuration: read by everyone (public form shows only
+    // enabled subjects); write restricted to the admin.
+    match /contact_messages_config/{docId} {
       allow read: if true;
       allow write: if isAdmin();
+    }
+
+    // Deny everything else.
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

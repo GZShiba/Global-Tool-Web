@@ -12,8 +12,8 @@
  * most once and only when configuration exists.
  */
 import type { FirebaseApp } from 'firebase/app';
+import type { Auth } from 'firebase/auth';
 import type { Firestore } from 'firebase/firestore';
-import type { FirebaseStorage } from 'firebase/storage';
 
 export interface FirebaseConfig {
   apiKey?: string;
@@ -44,7 +44,7 @@ export function isFirebaseConfigured(): boolean {
 
 let appCache: FirebaseApp | null | undefined;
 let firestoreCache: Firestore | null | undefined;
-let storageCache: FirebaseStorage | null | undefined;
+let authCache: Auth | null | undefined;
 
 /** Returns the Firebase app or null when unconfigured/initialization fails. */
 export async function getFirebaseApp(): Promise<FirebaseApp | null> {
@@ -81,20 +81,20 @@ export async function getFirestoreSafe(): Promise<Firestore | null> {
   return firestoreCache;
 }
 
-/** Firebase Storage instance or null (unconfigured / error). */
-export async function getStorageSafe(): Promise<FirebaseStorage | null> {
-  if (storageCache !== undefined) return storageCache;
+/** Firebase Auth instance or null (unconfigured / error). */
+export async function getAuthSafe(): Promise<Auth | null> {
+  if (authCache !== undefined) return authCache;
   const app = await getFirebaseApp();
   if (!app) {
-    storageCache = null;
+    authCache = null;
     return null;
   }
   try {
-    const { getStorage } = await import('firebase/storage');
-    storageCache = getStorage(app, readFirebaseConfig().storageBucket || undefined);
+    const { getAuth } = await import('firebase/auth');
+    authCache = getAuth(app);
   } catch (err) {
-    console.warn('[firebase] Storage unavailable — continuing with local fallback.', err);
-    storageCache = null;
+    console.warn('[firebase] Auth unavailable — continuing with unauthenticated mode.', err);
+    authCache = null;
   }
-  return storageCache;
+  return authCache;
 }

@@ -1,23 +1,32 @@
 import { useEffect, useState } from 'react';
 import { Star, Plus, X, ChevronUp, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
-import { PopularConfig, getPopularConfig, updatePopularConfig } from '../../lib/adminApi';
+import { PopularConfig, CmsTool } from '../../lib/adminApi';
+import { fetchPopularConfigFromFirestore, fetchAllToolsFromFirestore } from '../../lib/firestoreCms';
 import { updatePopularConfigCloud } from '../../lib/adminWriteLayer';
-import { tools, getCategory } from '../../data/tools';
+import { getCategoryName } from '../../data/tools';
 import { AdminBtn, AdminField, AdminSpinner, adminInputClass } from './adminUi';
 
 export default function PopularToolsManager() {
   const [cfg, setCfg] = useState<PopularConfig | null>(null);
+  const [cmsTools, setCmsTools] = useState<CmsTool[]>([]);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    getPopularConfig().then(setCfg).catch(() => setCfg({ enabled: true, maxCards: 4, toolIds: [] }));
+    (async () => {
+      const [fb, toolsList] = await Promise.all([
+        fetchPopularConfigFromFirestore(),
+        fetchAllToolsFromFirestore().catch(() => []),
+      ]);
+      setCfg(fb ?? { enabled: true, maxCards: 4, toolIds: [] });
+      setCmsTools(toolsList ?? []);
+    })();
   }, []);
 
   if (!cfg) return <AdminSpinner label="Loading popular tools config…" />;
 
-  const chosen = tools.filter(t => cfg.toolIds.includes(t.id));
-  const available = tools.filter(t => !cfg.toolIds.includes(t.id));
+  const chosen = cmsTools.filter(t => cfg.toolIds.includes(t.id));
+  const available = cmsTools.filter(t => !cfg.toolIds.includes(t.id));
 
   const add = (id: string) => {
     setCfg(prev => ({ ...prev, toolIds: [...prev.toolIds, id] }));
@@ -81,7 +90,7 @@ export default function PopularToolsManager() {
                 <div className="w-7 h-7 rounded-lg bg-icon flex items-center justify-center text-secondary">{tool.icon}</div>
                 <div className="min-w-0 flex-1">
                   <p className="text-[13px] font-bold text-neutral-900 dark:text-white truncate">{tool.name}</p>
-                  <p className="text-[10px] text-faint font-normal">{getCategory(tool.category)?.name}</p>
+                  <p className="text-[10px] text-faint font-normal">{getCategoryName(tool.category)}</p>
                 </div>
                 <button onClick={() => remove(tool.id)} aria-label="Remove" className="text-faint hover:text-red-600"><X size={15} /></button>
               </div>

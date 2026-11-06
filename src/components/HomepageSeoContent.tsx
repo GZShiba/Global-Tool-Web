@@ -1,19 +1,25 @@
 import { Compass, Search, Globe2, LayoutGrid, Sparkles, ListChecks } from 'lucide-react';
 import { useToolStore } from '../context/ToolContext';
-import { categories, tools } from '../data/tools';
+import ExpandableSection from './ExpandableSection';
 
 /**
  * Homepage informational SEO section — real, visible content that explains
  * what OmniToolify is and how to use it. Written for humans first.
  */
 export default function HomepageSeoContent() {
-  const { navigate } = useToolStore();
-  const categoryCount = categories.length;
-  const toolCount = tools.length;
+  const { navigate, categories: catalogCategories, tools: catalogTools } = useToolStore();
+  const categoryCount = catalogCategories.length;
+  const toolCount = catalogTools.length;
 
   return (
     <section className="max-w-7xl mx-auto px-4 md:px-8 mt-8 sm:mt-10" aria-labelledby="homepage-seo-h2">
       <div className="bg-card border border-subtle rounded-[28px] sm:rounded-[32px] p-6 sm:p-10 lg:p-12">
+        <ExpandableSection
+          id="homepage-seo-preview"
+          collapsedMaxHeightClass="max-h-[200px] sm:max-h-[260px] md:max-h-[320px] lg:max-h-[360px]"
+          expandedLabel="Read More"
+          collapsedLabel="Show Less"
+        >
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
           {/* Left column: core explanation */}
           <div>
@@ -75,10 +81,10 @@ export default function HomepageSeoContent() {
             </ul>
 
             <div className="mt-5 flex flex-wrap gap-2">
-              {categories.slice(0, 6).map(cat => (
+              {catalogCategories.slice(0, 6).map(cat => (
                 <button
                   key={cat.id}
-                  onClick={() => navigate('category', cat.id)}
+                  onClick={() => navigate('category', { category: cat.id })}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-inset border border-subtle text-secondary hover:text-neutral-900 dark:hover:text-white hover:border-neutral-400 dark:hover:border-neutral-600 transition-colors text-[11px] font-bold uppercase tracking-wider"
                 >
                   {cat.name}
@@ -146,6 +152,7 @@ export default function HomepageSeoContent() {
             </div>
           </div>
         </div>
+        </ExpandableSection>
       </div>
     </section>
   );
