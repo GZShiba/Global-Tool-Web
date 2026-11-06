@@ -18,16 +18,23 @@ export interface ServiceAccount {
 }
 
 export function parseServiceAccount(json: string): ServiceAccount {
+  // Tolerate common paste artifacts: surrounding quotes and literal \n
+  // sequences inside the private key (never logs or exposes contents).
+  const cleaned = json.trim().replace(/^["']|["']$/g, '');
   let parsed: Record<string, unknown>;
   try {
-    parsed = JSON.parse(json);
+    parsed = JSON.parse(cleaned);
   } catch {
     throw new Error('FIREBASE_SERVICE_ACCOUNT is not valid JSON');
   }
   const clientEmail = parsed.client_email;
-  const privateKey = parsed.private_key;
-  if (typeof clientEmail !== 'string' || typeof privateKey !== 'string') {
+  const privateKeyRaw = parsed.private_key;
+  if (typeof clientEmail !== 'string' || typeof privateKeyRaw !== 'string') {
     throw new Error('FIREBASE_SERVICE_ACCOUNT is missing client_email/private_key');
+  }
+  let privateKey: string = privateKeyRaw;
+  if (privateKey.includes('\\n')) {
+    privateKey = privateKey.replace(/\\n/g, '\n');
   }
   return { clientEmail, privateKey };
 }

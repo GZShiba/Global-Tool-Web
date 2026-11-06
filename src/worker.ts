@@ -77,15 +77,26 @@ let runtimePromise: Promise<Runtime> | null = null;
 async function getRuntime(env: Env): Promise<Runtime> {
   const projectId = env.FIREBASE_PROJECT_ID;
   const secret = env.FIREBASE_SERVICE_ACCOUNT;
-  if (!projectId || !secret) {
+
+  if (!projectId) {
+    console.warn('[worker] runtime init failed: missing-project (FIREBASE_PROJECT_ID var)');
     throw new NotConfiguredError('Firebase service account is not configured');
   }
+  if (!secret) {
+    console.warn('[worker] runtime init failed: missing-secret (FIREBASE_SERVICE_ACCOUNT)');
+    throw new NotConfiguredError('Firebase service account is not configured');
+  }
+
   let sa: ServiceAccount;
   try {
     sa = parseServiceAccount(secret);
   } catch (err) {
-    throw new NotConfiguredError(err instanceof Error ? err.message : 'bad service account');
+    const reason = err instanceof Error ? err.message : 'unknown';
+    // Sanitized: never log the secret contents, only the failure class.
+    console.warn('[worker] runtime init failed: service-account parse error —', reason);
+    throw new NotConfiguredError('Firebase service account is not configured');
   }
+
   const primaryEmail = (env.PRIMARY_ADMIN_EMAIL || DEFAULT_PRIMARY_EMAIL).toLowerCase().trim();
   const secondaryEmail = (env.SECONDARY_ADMIN_EMAIL || DEFAULT_SECONDARY_EMAIL).toLowerCase().trim();
   const kdfIterations = Number(env.KDF_ITERATIONS) > 0 ? Number(env.KDF_ITERATIONS) : DEFAULT_KDF_ITERATIONS;
