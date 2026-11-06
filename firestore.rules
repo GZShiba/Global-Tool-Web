@@ -7,40 +7,9 @@ service cloud.firestore {
     function isVerified() {
       return request.auth.token.email_verified == true;
     }
-    function isPrimaryEmail() {
-      return request.auth.token.email == 'gzshiba99329@gmail.com';
-    }
-    function isSecondaryEmail() {
-      return request.auth.token.email == 'hb9717777@gmail.com';
-    }
-
-    // The caller must hold an ACTIVE, UNEXPIRED PIN-verified session created
-    // by the Worker (server-side) for their exact Firebase uid. The document
-    // lives in admin_config/sessions/{uid}, is written only by the service
-    // account, and is never client-writable.
-    function hasActiveSession() {
-      let session = get(/databases/$(database)/documents/admin_config/sessions/$(request.auth.uid));
-      return session.data != null
-        && session.data.active == true
-        && session.data.expiresAt is timestamp
-        && session.data.expiresAt >= request.time;
-    }
-
-    // The Secondary admin must additionally be enabled in the server-managed
-    // accounts document. If the document is missing, the Secondary is denied
-    // (fail closed). The Primary is never affected by this check.
-    function isSecondaryEnabled() {
-      let accounts = get(/databases/$(database)/documents/admin_config/accounts);
-      return !isSecondaryEmail()
-        || (accounts.data != null && accounts.data.secondaryEnabled == true);
-    }
-
-    // An administrator = authenticated + verified email + one of the two
-    // allowlisted emails + active unexpired PIN session + (Secondary) enabled.
     function isAdmin() {
-      return isSignedIn() && isVerified() && hasActiveSession()
-        && (isPrimaryEmail() || isSecondaryEmail())
-        && isSecondaryEnabled();
+      return isSignedIn() && isVerified() &&
+        (request.auth.token.email == 'gzshiba99329@gmail.com');
     }
 
     // Admin can read ALL CMS records (drafts, archived, disabled included).
@@ -67,13 +36,12 @@ service cloud.firestore {
     }
 
     // Contact messages: anyone may create a validated message — anonymous
-    // visitors, authenticated non-admins, and the signed-in admin. ONLY a
-    // PIN-verified admin may read, update (status), or delete them. Public
-    // reads, updates, and deletes are denied outright, and create is
-    // restricted to the exact expected fields with validated types/lengths
-    // (no unexpected fields, no spoofed status, server timestamps only).
-    // Authentication state must NOT gate create: an admin session is still
-    // `request.auth != null`.
+    // visitors, authenticated non-admins, and the signed-in admin. ONLY the
+    // verified admin may read, update (status), or delete them. Public reads,
+    // updates, and deletes are denied outright, and create is restricted to the
+    // exact expected fields with validated types/lengths (no unexpected fields,
+    // no spoofed status, server timestamps only). Authentication state must NOT
+    // gate create: an admin session is still `request.auth != null`.
     match /contact_messages/{msgId} {
       allow create: if request.resource.data.keys().hasOnly(['name','email','subjectType','subject','message','status','createdAt','updatedAt'])
         && request.resource.data.name is string
@@ -101,18 +69,10 @@ service cloud.firestore {
     }
 
     // Contact subject configuration: read by everyone (public form shows only
-    // enabled subjects); write restricted to a PIN-verified admin.
+    // enabled subjects); write restricted to the admin.
     match /contact_messages_config/{docId} {
       allow read: if true;
       allow write: if isAdmin();
-    }
-
-    // Server-managed admin configuration (accounts, security hash, sessions,
-    // rate-limit counters): COMPLETELY inaccessible to browser clients. The
-    // Worker service account writes these documents directly (bypassing rules
-    // as a privileged server identity); rules only read them via get().
-    match /admin_config/{document=**} {
-      allow read, write: if false;
     }
 
     // Deny everything else.

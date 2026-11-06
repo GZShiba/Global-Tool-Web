@@ -2,7 +2,7 @@
 #
 # Serves the Vite build from ./dist via Workers Static Assets with SPA
 # fallback, and routes /api/* to the Worker script (currently only /api/health;
-# future security endpoints will live here too).
+# future endpoints can be added here).
 name = "omnitoolify"
 main = "src/worker.ts"
 compatibility_date = "2026-11-06"
@@ -16,17 +16,3 @@ directory = "./dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
 run_worker_first = ["/api/*"]
-
-# Non-secret runtime configuration for the Worker.
-# Secrets (FIREBASE_SERVICE_ACCOUNT, BOOTSTRAP_SECRET) must be set with:
-#   npx wrangler secret put FIREBASE_SERVICE_ACCOUNT
-#   npx wrangler secret put BOOTSTRAP_SECRET
-[vars]
-FIREBASE_PROJECT_ID = "omnitoolify"
-PRIMARY_ADMIN_EMAIL = "gzshiba99329@gmail.com"
-SECONDARY_ADMIN_EMAIL = "hb9717777@gmail.com"
-# KDF cost (PBKDF2-SHA256 iterations). Calibrated to ~10 ms CPU on the
-# Workers Free plan. Raise to >=100000 on Workers Paid for stronger offline
-# resistance (see the Step-3 report for measured costs).
-KDF_ITERATIONS = "20000"
-SESSION_TTL_MS = "720000"
