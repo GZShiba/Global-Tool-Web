@@ -17,10 +17,16 @@ binding = "ASSETS"
 not_found_handling = "single-page-application"
 run_worker_first = ["/api/*"]
 
-# Public build vars for the frontend (baked by Vite at build time).
-# Required by `npm run build`; set in the build environment (GitHub Actions or
-# Cloudflare Git integration), NOT committed.
+# Non-secret runtime configuration for the Worker.
+# Secrets (FIREBASE_SERVICE_ACCOUNT, BOOTSTRAP_SECRET) must be set with:
+#   npx wrangler secret put FIREBASE_SERVICE_ACCOUNT
+#   npx wrangler secret put BOOTSTRAP_SECRET
 [vars]
-# VITE_FIREBASE_* are read from the environment by Vite during `npm run build`
-# and are NOT passed as Worker runtime vars. The frontend config is part of the
-# static bundle, not this Worker.
+FIREBASE_PROJECT_ID = "omnitoolify"
+PRIMARY_ADMIN_EMAIL = "gzshiba99329@gmail.com"
+SECONDARY_ADMIN_EMAIL = "hb9717777@gmail.com"
+# KDF cost (PBKDF2-SHA256 iterations). Calibrated to ~10 ms CPU on the
+# Workers Free plan. Raise to >=100000 on Workers Paid for stronger offline
+# resistance (see the Step-3 report for measured costs).
+KDF_ITERATIONS = "20000"
+SESSION_TTL_MS = "720000"
