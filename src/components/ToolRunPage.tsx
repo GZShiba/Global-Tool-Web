@@ -65,9 +65,9 @@ export default function ToolRunPage() {
                 </>
               ) : action.reason === 'invalid-external-url' ? (
                 <>
-                  <p className="text-sm font-bold text-amber-700 dark:text-amber-400 mb-1">External redirect is misconfigured</p>
+                  <p className="text-sm font-bold text-amber-700 dark:text-amber-400 mb-1">This tool is temporarily unavailable</p>
                   <p className="text-xs text-faint font-normal">
-                    The URL is missing or invalid. Fix it in Admin → Add/Edit Tool.
+                    Its external link isn't set up correctly yet. Please try again later.
                   </p>
                 </>
               ) : (

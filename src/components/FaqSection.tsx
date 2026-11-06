@@ -50,7 +50,7 @@ const FAQ_ITEMS: FaqItem[] = [
         values, calculating numbers, preparing files, and similar digital jobs. The exact set of available tools is
         managed in the catalogue and shown under{' '}
         <a href="/tools" className="font-semibold underline decoration-1 underline-offset-2 text-neutral-900 dark:text-white hover:opacity-70 transition-opacity">All Tools</a>.
-        Because some tools open a configured external service rather than an in-browser interface, check a tool's page to
+        Because some tools link out to an external service instead of working inside the browser, check a tool's page to
         see how it opens before you start.
       </>
     ),
@@ -72,7 +72,7 @@ const FAQ_ITEMS: FaqItem[] = [
       <>
         No. OmniToolify is a website — there is nothing to download and no desktop installation. As long as you have a
         modern web browser, you can open the directory and start browsing. Tools that run in the browser work directly
-        on the page; tools configured to open an external site will take you to that site in a new tab.
+        on the page; tools that open an external site will take you there in a new tab.
       </>
     ),
   },
@@ -101,8 +101,8 @@ const FAQ_ITEMS: FaqItem[] = [
     a: (
       <>
         No account is needed to browse or use the public site. You can bookmark tools by clicking the bookmark icon on a
-        tool card — those bookmarks are saved privately in your browser and appear under “My Tools”. The only signed-in
-        area is the separate admin panel, which is not part of the public experience.
+        tool card — those bookmarks are saved privately in your browser and appear under “My Tools”. Nothing on the public
+        site requires signing in.
       </>
     ),
   },
@@ -115,7 +115,7 @@ const FAQ_ITEMS: FaqItem[] = [
         storage (your theme choice and your bookmarks), and neither leaves your browser. This is described in detail on
         the{' '}
         <a href="/privacy" className="font-semibold underline decoration-1 underline-offset-2 text-neutral-900 dark:text-white hover:opacity-70 transition-opacity">Privacy Policy</a>{' '}
-        page. One honest caveat: if a tool is configured to open an external website, that external site's own privacy
+        page. One honest caveat: if a tool opens an external website, that site's own privacy
         practices apply to anything you do there.
       </>
     ),

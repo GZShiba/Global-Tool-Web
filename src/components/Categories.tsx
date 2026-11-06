@@ -21,8 +21,8 @@ export default function Categories() {
         />
       ) : catalogCategories.length === 0 ? (
         <div className="bg-card border border-dashed border-gray-300 dark:border-neutral-800 rounded-[24px] py-12 text-center">
-          <p className="text-sm font-bold text-neutral-900 dark:text-white">No categories enabled yet</p>
-          <p className="text-xs text-secondary font-normal mt-1">Enabled categories from the CMS will appear here.</p>
+          <p className="text-sm font-bold text-neutral-900 dark:text-white">No categories available right now</p>
+          <p className="text-xs text-secondary font-normal mt-1">Check back soon — new categories are added regularly.</p>
         </div>
       ) : (
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-5">

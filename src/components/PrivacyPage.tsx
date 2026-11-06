@@ -20,7 +20,7 @@ export default function PrivacyPage() {
               <Smartphone size={16} className="text-accent" /> Where your data is processed
             </h2>
             <p className="text-sm text-secondary font-normal leading-relaxed">
-              Every tool runs entirely in your browser. Text you paste, files you select, and values you enter are processed locally on your device using standard browser APIs (Canvas, Web Crypto, FileReader, and similar). OmniToolify has no backend that receives your tool input.
+              Every tool runs entirely in your browser. Text you paste, files you select, and values you enter are processed locally on your device using standard browser APIs (Canvas, Web Crypto, FileReader, and similar). Your inputs are never uploaded or sent to our servers.
             </p>
           </section>
 

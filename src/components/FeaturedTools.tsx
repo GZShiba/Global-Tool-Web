@@ -92,8 +92,8 @@ export default function FeaturedTools() {
         </div>
       ) : (
         <div className="bg-card border border-dashed border-gray-300 dark:border-neutral-800 rounded-[24px] py-12 text-center">
-          <p className="text-sm font-bold text-neutral-900 dark:text-white">No popular tools configured yet</p>
-          <p className="text-xs text-secondary font-normal mt-1">Tools marked as Popular in the Admin Panel will appear here.</p>
+          <p className="text-sm font-bold text-neutral-900 dark:text-white">No popular tools available right now</p>
+          <p className="text-xs text-secondary font-normal mt-1">Check back soon for useful tools and recommendations.</p>
         </div>
       )}
 

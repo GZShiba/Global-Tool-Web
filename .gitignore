@@ -10,3 +10,6 @@ coverage/
 # Local admin CMS data (secrets, hashes, sessions, uploads)
 .admin-data/
 public/admin-media/
+
+# Cloudflare Worker local tooling
+.wrangler/

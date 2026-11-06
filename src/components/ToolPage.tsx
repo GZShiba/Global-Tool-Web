@@ -227,7 +227,7 @@ export default function ToolPage() {
 
               {action.kind === 'unavailable' && action.reason === 'invalid-external-url' && (
                 <p className="mt-3 text-[11px] text-amber-700 dark:text-amber-400 font-medium bg-amber-50 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-900/40 rounded-xl p-3">
-                  External redirect is enabled but the URL is missing or invalid — fix it in Admin → Add/Edit Tool.
+                  External link isn't set up correctly yet — this tool is temporarily unavailable. Please try again later.
                 </p>
               )}
               {action.kind === 'unavailable' && action.reason === 'no-implementation' && (

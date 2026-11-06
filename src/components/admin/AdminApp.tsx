@@ -1,17 +1,16 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
-import { LayoutDashboard, Image as ImageIcon, Star, Wrench, Plus, FolderTree, KeyRound, LogOut, PanelLeftClose, PanelLeft, Sun, Moon, MessagesSquare } from 'lucide-react';
+import { LayoutDashboard, Image as ImageIcon, Star, Wrench, Plus, FolderTree, LogOut, PanelLeftClose, PanelLeft, Sun, Moon, MessagesSquare } from 'lucide-react';
 import { useAdminTheme } from './adminTheme';
 import HeroSlidesManager from './HeroSlidesManager';
 import PopularToolsManager from './PopularToolsManager';
 import ToolsManager from './ToolsManager';
 import CategoriesManager from './CategoriesManager';
 import MediaLibrary from './MediaLibrary';
-import ChangePin from './ChangePin';
 import ContactMessagesManager from './ContactMessagesManager';
 import ErrorBoundary from './ErrorBoundary';
 
-type AdminSection = 'home' | 'hero' | 'popular' | 'tools' | 'add' | 'categories' | 'media' | 'messages' | 'security';
+type AdminSection = 'home' | 'hero' | 'popular' | 'tools' | 'add' | 'categories' | 'media' | 'messages';
 
 const NAV: { id: AdminSection; label: string; icon: ReactNode; group: string }[] = [
   { id: 'home', label: 'Content Home', icon: <LayoutDashboard size={16} />, group: 'Home Content' },
@@ -22,7 +21,6 @@ const NAV: { id: AdminSection; label: string; icon: ReactNode; group: string }[]
   { id: 'categories', label: 'Categories', icon: <FolderTree size={16} />, group: 'Categories' },
   { id: 'messages', label: 'Contact Messages', icon: <MessagesSquare size={16} />, group: 'Messages' },
   { id: 'media', label: 'Media Library', icon: <ImageIcon size={16} />, group: 'Media Library' },
-  { id: 'security', label: 'Admin Security', icon: <KeyRound size={16} />, group: 'Admin Security' },
 ];
 
 export default function AdminApp({ onLogout }: { onLogout: () => void }) {
@@ -57,7 +55,7 @@ export default function AdminApp({ onLogout }: { onLogout: () => void }) {
         </div>
 
         <nav className="flex-1 overflow-y-auto p-3 space-y-4">
-          {(['Home Content', 'Tool Management', 'Categories', 'Messages', 'Media Library', 'Admin Security'] as const).map(group => {
+          {(['Home Content', 'Tool Management', 'Categories', 'Messages', 'Media Library'] as const).map(group => {
             const items = NAV.filter(n => n.group === group);
             return (
               <div key={group}>
@@ -133,7 +131,6 @@ export default function AdminApp({ onLogout }: { onLogout: () => void }) {
           {section === 'categories' && <ErrorBoundary label="Categories"><CategoriesManager /></ErrorBoundary>}
           {section === 'messages' && <ErrorBoundary label="Contact Messages"><ContactMessagesManager /></ErrorBoundary>}
           {section === 'media' && <ErrorBoundary label="Media Library"><MediaLibrary /></ErrorBoundary>}
-          {section === 'security' && <ErrorBoundary label="Admin Security"><ChangePin /></ErrorBoundary>}
         </main>
       </div>
     </div>
@@ -148,7 +145,6 @@ function AdminLanding({ go }: { go: (s: AdminSection) => void }) {
     { id: 'categories', title: 'Categories', desc: 'Manage tool categories, slugs, and ordering.', icon: <FolderTree size={18} /> },
     { id: 'messages', title: 'Contact Messages', desc: 'View and manage contact form submissions.', icon: <MessagesSquare size={18} /> },
     { id: 'media', title: 'Media Library', desc: 'Manage image URLs used across the site.', icon: <ImageIcon size={18} /> },
-    { id: 'security', title: 'Admin Security', desc: 'PIN/password/email and account management.', icon: <KeyRound size={18} /> },
   ];
 
   return (

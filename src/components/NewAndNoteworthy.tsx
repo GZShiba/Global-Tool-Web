@@ -53,8 +53,8 @@ export default function NewAndNoteworthy() {
         </div>
       ) : (
         <div className="bg-card border border-dashed border-gray-300 dark:border-neutral-800 rounded-[24px] py-12 text-center">
-          <p className="text-sm font-bold text-neutral-900 dark:text-white">No tools published yet</p>
-          <p className="text-xs text-secondary font-normal mt-1">Published tools from the CMS will appear here.</p>
+          <p className="text-sm font-bold text-neutral-900 dark:text-white">No new tools yet</p>
+          <p className="text-xs text-secondary font-normal mt-1">Fresh tools will appear here as they launch.</p>
         </div>
       )}
     </section>
